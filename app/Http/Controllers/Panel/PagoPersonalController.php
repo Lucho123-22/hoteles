@@ -10,6 +10,7 @@ use App\Models\PagoPersonal;
 use App\Pipelines\PagosPersonal\PorEstado;
 use App\Pipelines\PagosPersonal\PorPeriodo;
 use App\Pipelines\PagosPersonal\PorSucursal;
+use Illuminate\Http\Request;
 use Illuminate\Pipeline\Pipeline;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +19,13 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class PagoPersonalController extends Controller{
-    public function index(){
+    public function index(Request $request){
         Gate::authorize('viewAny', PagoPersonal::class);
+        $request->validate([
+            'sub_branch_id' => 'nullable|exists:sub_branches,id',
+            'estado' => 'nullable|in:pendiente,pagado,cancelado',
+            'periodo' => 'nullable|date_format:Y-m'
+        ]);
         $pagos = app(Pipeline::class)
             ->send(PagoPersonal::query()->with(['empleado', 'sucursal', 'registradoPor']))
             ->through([
@@ -30,16 +36,13 @@ class PagoPersonalController extends Controller{
             ->thenReturn()
             ->latest('fecha_pago')
             ->paginate(15);
-            
         return PagoPersonalResource::collection($pagos);
     }
     public function store(StorePagoPersonalRequest $request){
         try {
             Gate::authorize('create', PagoPersonal::class);
-            
             DB::beginTransaction();
             $userAuth = Auth::user();
-            
             $data = [
                 'user_id' => $request->user_id,
                 'sub_branch_id' => $userAuth->sub_branch_id,

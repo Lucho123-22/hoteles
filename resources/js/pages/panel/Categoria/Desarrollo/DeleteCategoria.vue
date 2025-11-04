@@ -52,8 +52,8 @@ async function deleteCategoria() {
             <span v-if="categoria">¿Estás seguro de eliminar esta categoría <b>{{ categoria.nombre }}</b>?</span>
         </div>
         <template #footer>
-            <Button label="No" icon="pi pi-times" text @click="closeDialog" />
-            <Button label="Sí" icon="pi pi-check" @click="deleteCategoria" />
+            <Button label="No" icon="pi pi-times" text @click="closeDialog" severity="secondary"/>
+            <Button label="Sí" icon="pi pi-check" @click="deleteCategoria" severity="danger"/>
         </template>
     </Dialog>
 </template>

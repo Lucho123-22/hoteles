@@ -49,12 +49,16 @@ class MovementsController extends Controller{
     }
     public function show(Movement $movement){
         Gate::authorize('view', $movement);
-        return $this->success(new MovementResource($movement));
+        return response()->json([
+            'success' => true,
+            'data' => new MovementResource($movement),
+        ]);
     }
     public function update(UpdateMovementRequest $request, Movement $movement){
         Gate::authorize('update', $movement);
         $data = $request->validated();
         $data['updated_by'] = Auth::id();
+        $data['sub_branch_id'] = Auth::user()->sub_branch_id;
         $movement->update($data);
         return $this->success(new MovementResource($movement), 'Movimiento actualizado correctamente.');
     }

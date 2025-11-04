@@ -188,6 +188,7 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::post('/{id}/liberar', [RoomController::class, 'liberar']);
     });
     // Gestión de uso de habitaciones
+    Route::get('/bookings/{booking}/ticket', [BookingController::class, 'ticket']);
     Route::post('/bookings/{booking}/start', [RoomStatusController::class, 'startRoom']);
     Route::post('/bookings/{booking}/extend', [RoomStatusController::class, 'extendTime']);
     Route::post('/bookings/{booking}/finish', [RoomStatusController::class, 'finishRoom']);
@@ -216,6 +217,7 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
     
     Route::get('currencies', [CurrencyController::class, 'index']);
 
+
     Route::prefix('bookings')->group(function () {
         Route::post('/', [BookingController::class, 'store']);
         Route::post('/{booking}/add-consumption', [BookingController::class, 'addConsumption']);
@@ -225,7 +227,14 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::post('/rooms/{room}/mark-ready', [RoomStatusController::class, 'markAsReady']);
         Route::get('/rooms/{room}/status-history', [RoomStatusController::class, 'statusHistory']);
     });
-        Route::get('/rooms/dashboard', [RoomStatusController::class, 'dashboard']);
+
+    Route::prefix('reporte-pagos')->group(function () {
+        Route::get('/', [PaymentController::class, 'reportePagos']);
+        Route::get('{id}', [PaymentController::class, 'show']);
+    });
+
+    Route::get('/rooms/dashboard', [RoomStatusController::class, 'dashboard']);
+
     Route::prefix('payments')->group(function () {
         Route::get('/user-cash-register', [PaymentController::class, 'getUserCashRegister']);
         Route::get('/methods', [PaymentController::class, 'getPaymentMethods']);
@@ -261,8 +270,12 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
     
     #MOVEMENT DETAIL => BACKEND
     Route::prefix('movement-detail')->group(function () {
+        Route::get('{movementId}/details', [MovementDetailController::class, 'index']);
+        Route::post('{id}/restore', [MovementDetailController::class, 'restore']);
         Route::post('/', [MovementDetailController::class, 'store']);
-        Route::get('/{movement}/details', [MovementDetailController::class, 'index']);
+        Route::get('{movementDetail}', [MovementDetailController::class, 'show']);
+        Route::put('{movementDetail}', [MovementDetailController::class, 'update']);
+        Route::delete('{movementDetail}', [MovementDetailController::class, 'destroy']);
     });
 
     #PROVIDERS => BACKEND

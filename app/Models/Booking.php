@@ -84,6 +84,11 @@ class Booking extends Model implements AuditableContract{
         return $this->hasMany(BookingConsumption::class);
     }
 
+    public function bookingConsumptions()
+    {
+        return $this->hasMany(BookingConsumption::class, 'booking_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {

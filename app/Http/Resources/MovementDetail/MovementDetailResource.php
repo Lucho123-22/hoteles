@@ -1,30 +1,46 @@
 <?php
-
 namespace App\Http\Resources\MovementDetail;
 
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class MovementDetailResource extends JsonResource{
-    public function toArray(Request $request): array{
+class MovementDetailResource extends JsonResource
+{
+    public function toArray($request): array
+    {
+        $tipo = match ($this->quantity_type) {
+            'packages' => 'Paquete',
+            'fractions' => 'Fracción',
+            'packages_fractions', 'both' => 'Paquete - Fracción',
+            default => '-',
+        };
+
+        $boxes = (int) ($this->boxes ?? 0);
+        $fractions = (int) ($this->fractions ?? 0);
+        
+        $cantidades = match ($this->quantity_type) {
+            'packages' => (string)$boxes,
+            'fractions' => (string)$fractions,
+            'packages_fractions', 'both' => "{$boxes} - {$fractions}",
+            default => '0',
+        };
+
         return [
-            'id'              => $this->id,
-            'movement_id'     => $this->movement_id,
-            'product'         => [
-                'id'   => $this->product->id ?? null,
-                'name' => $this->product->name ?? null,
-            ],
-            'unit_price'      => (float) $this->unit_price,
-            'boxes'           => (int) $this->boxes,
-            'units_per_box'   => (int) $this->units_per_box,
-            'expiry_date'     => $this->expiry_date
-                ? Carbon::parse($this->expiry_date)->format('d-m-Y')
+            'id' => $this->id,
+            'tipo' => $tipo,
+            'cantidades' => $cantidades,
+            'producto' => $this->whenLoaded('product', function () {
+                return [
+                    'id' => $this->product->id,
+                    'nombre' => $this->product->name,
+                    'codigo' => $this->product->code ?? null,
+                    'es_fraccionable' => (bool) $this->product->is_fractionable,
+                ];
+            }),
+            'fecha_vencimiento' => $this->expiry_date
+                ? date('d/m/Y', strtotime($this->expiry_date))
                 : null,
-            'total_price'     => (float) $this->total_price,
-            'estado'          => $this->estado ?? 1,
-            'created_at'      => $this->created_at?->format('d-m-Y H:i:s A'),
-            'updated_at'      => $this->updated_at?->format('d-m-Y H:i:s A'),
+            'precio_unitario' => number_format((float)($this->unit_price ?? 0), 2),
+            'precio_total' => number_format((float)($this->total_price ?? 0), 2),
         ];
     }
 }

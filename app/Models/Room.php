@@ -45,13 +45,6 @@ class Room extends Model implements Auditable
         return $this->hasMany(Booking::class);
     }
 
-    public function currentBooking()
-    {
-        return $this->hasOne(Booking::class)
-            ->where('status', 'checked_in')
-            ->latest();
-    }
-
     public function statusLogs()
     {
         return $this->hasMany(RoomStatusLog::class)->latest();
@@ -74,7 +67,13 @@ class Room extends Model implements Auditable
             $q->where('branch_id', $branchId);
         });
     }
-
+    public function currentBooking()
+    {
+        return $this->hasOne(Booking::class)
+            ->where('status', Booking::STATUS_CHECKED_IN)
+            ->with('customer') // Eager load del cliente
+            ->latest('check_in');
+    }
     // Métodos de negocio
     public function changeStatus($newStatus, $reason = null, $userId = null)
     {

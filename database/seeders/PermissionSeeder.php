@@ -51,6 +51,7 @@ class PermissionSeeder extends Seeder{
         Permission::create(['name' => 'update movimiento']);
         Permission::create(['name' => 'delete movimiento']);
         Permission::create(['name' => 'view movimiento']);
+        Permission::create(['name' => 'editar movimiento']);
 
         #=============================
         #FLOOR

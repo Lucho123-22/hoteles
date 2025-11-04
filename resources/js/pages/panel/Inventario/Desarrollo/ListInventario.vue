@@ -7,7 +7,7 @@
           <i class="pi pi-warehouse text-2xl text-blue-600"></i>
           <div>
             <h3 class="m-0 font-bold">Inventario de Sucursal</h3>
-            <p class="text-sm text-gray-500 mt-1" v-if="getSucursalNombre()">
+            <p class="text-sm mt-1" v-if="getSucursalNombre()">
               {{ getSucursalNombre() }}
             </p>
           </div>
@@ -35,7 +35,6 @@
       <template #end>
         <div class="flex gap-2">
           <Button icon="pi pi-refresh" label="Actualizar" severity="secondary" @click="cargarInventario" />
-          <Button icon="pi pi-download" label="Exportar" severity="success" @click="exportData" />
         </div>
       </template>
     </Toolbar>
@@ -141,7 +140,6 @@
       class="p-datatable-sm"
       :loading="inventarioStore.loading"
       stripedRows
-      showGridlines
       :globalFilterFields="['product_name', 'category_name']">
       
       <template #header>
@@ -204,7 +202,7 @@
                 :showValue="false" 
                 :style="{ height: '8px' }"
                 :pt="{ value: { style: getProgressBarStyle(data.current_stock, data.min_stock) } }" />
-              <span class="text-xs text-gray-500 mt-1">
+              <span class="text-xs mt-1">
                 {{ calcularPorcentajeStock(data.current_stock, data.max_stock).toFixed(0) }}%
               </span>
             </div>
@@ -228,7 +226,7 @@
         </template>
       </Column>
 
-      <Column header="Estado Stock" sortable style="min-width: 12rem">
+      <Column header="Estado Stock" sortable style="min-width: 14rem">
         <template #body="{ data }">
           <div v-if="data.is_out_of_stock" class="flex items-center gap-2">
             <Tag value="SIN STOCK" severity="danger" icon="pi pi-times-circle" />
@@ -244,7 +242,7 @@
         </template>
       </Column>
 
-      <Column field="purchase_price" header="P. Compra" sortable style="min-width: 10rem">
+      <Column field="purchase_price" header="P. Compra" sortable style="min-width: 8rem">
         <template #body="{ data }">
           <div class="flex items-center gap-1">
             <span class="text-xs">S/</span>
@@ -253,7 +251,7 @@
         </template>
       </Column>
 
-      <Column field="sale_price" header="P. Venta" sortable style="min-width: 10rem">
+      <Column field="sale_price" header="P. Venta" sortable style="min-width: 8rem">
         <template #body="{ data }">
           <div class="flex items-center gap-1">
             <span class="text-xs">S/</span>
@@ -261,43 +259,12 @@
           </div>
         </template>
       </Column>
-
-      <Column header="Margen" style="min-width: 10rem">
-        <template #body="{ data }">
-          <div class="flex flex-col items-center">
-            <span class="text-sm font-bold" :class="getMargenClass(data.purchase_price, data.sale_price)">
-              {{ calcularMargen(data.purchase_price, data.sale_price) }}%
-            </span>
-            <span class="text-xs">
-              S/ {{ calcularGanancia(data.purchase_price, data.sale_price) }}
-            </span>
-          </div>
-        </template>
-      </Column>
-
       <Column field="is_active" header="Estado" sortable style="min-width: 9rem">
         <template #body="{ data }">
           <Tag :value="data.is_active ? 'ACTIVO' : 'INACTIVO'" 
             :severity="data.is_active ? 'success' : 'danger'" />
         </template>
       </Column>
-
-      <template #footer>
-        <div class="flex justify-between items-center py-2 bg-gray-50">
-          <div class="flex gap-4">
-            <span class="text-sm text-gray-600">
-              Total de productos: <strong>{{ inventarioStore.pagination.total }}</strong>
-            </span>
-            <span class="text-sm text-gray-600">
-              Stock total: <strong>{{ formatearNumero(inventarioStore.resumen?.stock_total || 0) }}</strong> unidades
-            </span>
-          </div>
-          <div class="text-sm text-gray-500">
-            Última actualización: {{ new Date().toLocaleString('es-PE') }}
-          </div>
-        </div>
-      </template>
-
     </DataTable>
   </div>
 </template>

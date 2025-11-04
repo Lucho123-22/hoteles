@@ -13,7 +13,7 @@ class BookingConsumption extends Model
     use HasFactory, HasUuids, SoftDeletes, HasAuditFields;
 
     protected $fillable = [
-        'booking_id', 'product_id', 'quantity', 'unit_price', 'total_price',
+        'booking_id', 'product_id', 'quantity', 'unit_price', 'total_price','status',
         'consumed_at', 'notes'
     ];
 

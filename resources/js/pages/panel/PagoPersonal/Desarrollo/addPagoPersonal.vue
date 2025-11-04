@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import Toolbar from 'primevue/toolbar';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -207,6 +207,16 @@ const metodosPago = ref([
   { label: 'Transferencia Bancaria', value: 'transferencia' },
   { label: 'Cheque', value: 'cheque' }
 ]);
+
+// Watcher para detectar cambios en la sucursal mientras el diálogo está abierto
+watch(() => props.sucursalSeleccionada, (newVal, oldVal) => {
+  // Si el diálogo está abierto y cambió la sucursal, recargar usuarios
+  if (productDialog.value && newVal !== oldVal && newVal) {
+    usuarios.value = []; // Limpiar usuarios anteriores
+    pago.value.user_id = null; // Limpiar empleado seleccionado
+    loadUsuarios();
+  }
+});
 
 const loadUsuarios = async () => {
   if (!props.sucursalSeleccionada) {
@@ -270,10 +280,10 @@ const openNew = () => {
   };
   selectedFile.value = null;
   errors.value = {};
+  usuarios.value = []; // Limpiar usuarios antes de abrir
   
-  loadUsuarios();
-  
-  productDialog.value = true;
+  productDialog.value = true; // Abrir diálogo primero
+  loadUsuarios(); // Luego cargar usuarios
 };
 
 const hideDialog = () => {

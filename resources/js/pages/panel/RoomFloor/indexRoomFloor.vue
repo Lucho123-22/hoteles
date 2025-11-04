@@ -1,5 +1,5 @@
 <template>
-  <Head title="habitacion n" />
+  <Head title="habitacion" />
   <AppLayouth>
     <div>
       <template v-if="isLoading">

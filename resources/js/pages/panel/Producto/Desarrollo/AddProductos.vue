@@ -62,6 +62,44 @@
                     <small v-else-if="serverErrors.unit_type" class="text-red-500">{{ serverErrors.unit_type[0] }}</small>
                 </div>
 
+                <!-- Stock Mínimo y Máximo -->
+                <div class="col-span-12 grid grid-cols-12 gap-4">
+                    <!-- Stock Mínimo -->
+                    <div class="col-span-6">
+                        <label class="block font-bold mb-2">Stock Mínimo <span class="text-red-500">*</span></label>
+                        <InputText 
+                            v-model.number="producto.min_stock" 
+                            type="number" 
+                            fluid 
+                            min="0" 
+                            step="1" 
+                            placeholder="Ej: 10"
+                        />
+                        <small>Cantidad mínima requerida en inventario</small>
+                        <small v-if="submitted && (producto.min_stock === null || producto.min_stock === '')" class="text-red-500 block">El stock mínimo es obligatorio.</small>
+                        <small v-else-if="submitted && producto.min_stock < 0" class="text-red-500 block">El stock mínimo debe ser mayor o igual a 0.</small>
+                        <small v-else-if="serverErrors.min_stock" class="text-red-500 block">{{ serverErrors.min_stock[0] }}</small>
+                    </div>
+
+                    <!-- Stock Máximo -->
+                    <div class="col-span-6">
+                        <label class="block font-bold mb-2">Stock Máximo <span class="text-red-500">*</span></label>
+                        <InputText 
+                            v-model.number="producto.max_stock" 
+                            type="number" 
+                            fluid 
+                            min="0" 
+                            step="1" 
+                            placeholder="Ej: 100"
+                        />
+                        <small>Cantidad máxima permitida en inventario</small>
+                        <small v-if="submitted && (producto.max_stock === null || producto.max_stock === '')" class="text-red-500 block">El stock máximo es obligatorio.</small>
+                        <small v-else-if="submitted && producto.max_stock < 0" class="text-red-500 block">El stock máximo debe ser mayor o igual a 0.</small>
+                        <small v-else-if="submitted && producto.max_stock < producto.min_stock" class="text-red-500 block">El stock máximo debe ser mayor o igual al stock mínimo.</small>
+                        <small v-else-if="serverErrors.max_stock" class="text-red-500 block">{{ serverErrors.max_stock[0] }}</small>
+                    </div>
+                </div>
+
                 <!-- Es Fraccionable y Unidades de Fracción -->
                 <div class="col-span-12 grid grid-cols-12 gap-4">
                     <!-- Es Fraccionable -->
@@ -71,7 +109,7 @@
                             <Checkbox v-model="producto.is_fractionable" :binary="true" />
                             <Tag :value="producto.is_fractionable ? 'Sí' : 'No'" :severity="producto.is_fractionable ? 'info' : 'secondary'" />
                         </div>
-                        <small class="text-gray-600">Indica si el producto puede venderse en fracciones</small>
+                        <small>Indica si el producto puede venderse en fracciones</small>
                         <small v-if="serverErrors.is_fractionable" class="text-red-500 block">{{ serverErrors.is_fractionable[0] }}</small>
                     </div>
 
@@ -86,7 +124,7 @@
                             step="1" 
                             placeholder="Ej: 12 (para docena)" 
                         />
-                        <small class="text-gray-600">Número de unidades que componen una fracción completa</small>
+                        <small>Número de unidades que componen una fracción completa</small>
                         <small v-if="submitted && producto.is_fractionable && (!producto.fraction_units || producto.fraction_units < 1)" class="text-red-500 block">Las unidades de fracción son obligatorias cuando el producto es fraccionable.</small>
                         <small v-else-if="serverErrors.fraction_units" class="text-red-500 block">{{ serverErrors.fraction_units[0] }}</small>
                     </div>
@@ -101,8 +139,8 @@
             </div>
         </div>
         <template #footer>
-            <Button label="Cancelar" icon="pi pi-times" text @click="hideDialog" />
-            <Button label="Guardar" icon="pi pi-check" @click="guardarProducto" />
+            <Button label="Cancelar" icon="pi pi-times" text @click="hideDialog" severity="secondary"/>
+            <Button label="Guardar" icon="pi pi-check" @click="guardarProducto" severity="contrast"/>
         </template>
     </Dialog>
 </template>
@@ -136,6 +174,8 @@ const producto = ref({
     description: '',
     is_fractionable: false,
     fraction_units: null,
+    min_stock: 0,
+    max_stock: 100,
 });
 
 const categorias = ref([]);
@@ -166,6 +206,8 @@ function resetProducto() {
         description: '',
         is_fractionable: false,
         fraction_units: null,
+        min_stock: 0,
+        max_stock: 100,
     };
     serverErrors.value = {};
     submitted.value = false;
@@ -213,6 +255,27 @@ function validateForm() {
     
     if (!producto.value.unit_type) {
         errors.push('El tipo de unidad es obligatorio');
+    }
+    
+    // Validaciones de stock
+    if (producto.value.min_stock === null || producto.value.min_stock === '') {
+        errors.push('El stock mínimo es obligatorio');
+    }
+    
+    if (producto.value.max_stock === null || producto.value.max_stock === '') {
+        errors.push('El stock máximo es obligatorio');
+    }
+    
+    if (producto.value.min_stock < 0) {
+        errors.push('El stock mínimo debe ser mayor o igual a 0');
+    }
+    
+    if (producto.value.max_stock < 0) {
+        errors.push('El stock máximo debe ser mayor o igual a 0');
+    }
+    
+    if (producto.value.max_stock < producto.value.min_stock) {
+        errors.push('El stock máximo debe ser mayor o igual al stock mínimo');
     }
     
     // Validación específica para productos fraccionables

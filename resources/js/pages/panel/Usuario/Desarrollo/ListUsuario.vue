@@ -119,7 +119,7 @@ onMounted(() => {
                         </InputIcon>
                         <InputText v-model="globalFilterValue" @input="onGlobalSearch" placeholder="Buscar..." />
                     </IconField>
-                    <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadUsers" />
+                    <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadUsers" severity="contrast"/>
                 </div>
             </div>
         </template>

@@ -27,4 +27,9 @@ trait ApiResponse
         report($e);
         return $this->fail(app()->hasDebugModeEnabled() ? $e->getMessage() : $fallback, 500);
     }
+    protected function successResponse($data = null, string $message = 'OK', int $code = 200): JsonResponse
+    {
+        return $this->ok($data, $message, $code);
+    }
+
 }

@@ -23,12 +23,17 @@ class UpdateProductRequest extends FormRequest
             'description'     => ['nullable', 'string', 'max:1000'],
             'is_fractionable' => ['required', 'boolean'],
             'fraction_units'  => ['required_if:is_fractionable,true', 'integer', 'min:1'],
+
+            // 🟢 Stocks opcionales pero válidos si se envían
+            'min_stock'       => ['nullable', 'integer', 'min:0'],
+            'max_stock'       => ['nullable', 'integer', 'min:0', 'gte:min_stock'],
         ];
     }
 
     public function messages(): array
     {
         return [
+            // --- Campos base ---
             'name.required'           => 'Name is required.',
             'name.min'                => 'Name must be at least 2 characters.',
             'name.max'                => 'Name must not exceed 100 characters.',
@@ -50,6 +55,13 @@ class UpdateProductRequest extends FormRequest
             'fraction_units.required_if' => 'Fraction units are required when product is fractionable.',
             'fraction_units.integer'  => 'Fraction units must be an integer.',
             'fraction_units.min'      => 'Fraction units must be at least 1.',
+
+            // --- 🟢 Mensajes nuevos para stock ---
+            'min_stock.integer'       => 'Minimum stock must be an integer.',
+            'min_stock.min'           => 'Minimum stock cannot be negative.',
+            'max_stock.integer'       => 'Maximum stock must be an integer.',
+            'max_stock.min'           => 'Maximum stock cannot be negative.',
+            'max_stock.gte'           => 'Maximum stock must be greater than or equal to minimum stock.',
         ];
     }
 }

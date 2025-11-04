@@ -6,9 +6,9 @@ export const useKardexGeneralStore = defineStore('kardexGeneral', {
     kardexData: [],
     loading: false,
     pagination: {
-      currentPage: 1,
-      lastPage: 1,
-      perPage: 15,
+      current_page: 1,
+      last_page: 1,
+      per_page: 15,
       total: 0,
       from: 0,
       to: 0
@@ -16,13 +16,14 @@ export const useKardexGeneralStore = defineStore('kardexGeneral', {
   }),
   
   actions: {
-    async fetchKardexGeneral(params = {}, page = 1) {
+    async fetchKardexGeneral(params = {}) {
       this.loading = true;
+      
       try {
         const requestParams = {
-          ...params,
-          page: page,
-          per_page: this.pagination.perPage
+          page: params.page || this.pagination.current_page,
+          per_page: params.perPage || this.pagination.per_page,
+          ...params
         };
 
         const response = await axios.get('/kardex/general', { params: requestParams });
@@ -32,9 +33,9 @@ export const useKardexGeneralStore = defineStore('kardexGeneral', {
         // Guardar información de paginación
         if (response.data.meta) {
           this.pagination = {
-            currentPage: response.data.meta.current_page,
-            lastPage: response.data.meta.last_page,
-            perPage: response.data.meta.per_page,
+            current_page: response.data.meta.current_page,
+            last_page: response.data.meta.last_page,
+            per_page: response.data.meta.per_page,
             total: response.data.meta.total,
             from: response.data.meta.from || 0,
             to: response.data.meta.to || 0
@@ -42,6 +43,7 @@ export const useKardexGeneralStore = defineStore('kardexGeneral', {
         }
         
         console.log('Kardex general cargado:', this.kardexData.length, 'registros de', this.pagination.total);
+        
       } catch (error) {
         console.error('Error al cargar kardex general:', error);
         this.kardexData = [];
@@ -53,9 +55,9 @@ export const useKardexGeneralStore = defineStore('kardexGeneral', {
     clearKardexGeneral() {
       this.kardexData = [];
       this.pagination = {
-        currentPage: 1,
-        lastPage: 1,
-        perPage: 15,
+        current_page: 1,
+        last_page: 1,
+        per_page: 15,
         total: 0,
         from: 0,
         to: 0

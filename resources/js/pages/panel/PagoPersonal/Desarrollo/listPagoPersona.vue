@@ -17,7 +17,7 @@
             :loading="loadingSucursales"
             class="w-64"
             showClear
-            @update:modelValue="onSucursalChange"
+            @change="onSucursalChange"
           >
             <template #option="slotProps">
               <div class="flex flex-col">
@@ -101,7 +101,7 @@
     <template #empty>
       <div class="text-center py-8">
         <i class="pi pi-inbox text-4xl text-gray-400 mb-3"></i>
-        <p class="text-gray-500">No se encontraron pagos registrados.</p>
+        <p class="">No se encontraron pagos registrados.</p>
       </div>
     </template>
   </DataTable>
@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -169,7 +169,7 @@ const deleteDialog = ref(false);
 const pagoSeleccionado = ref<PagoPersonal | null>(null);
 const sucursales = ref<any[]>([]);
 const loadingSucursales = ref(false);
-const isFirstLoad = ref(true); // Para saber si es la primera carga
+const isFirstLoad = ref(true);
 
 // Computed para v-model
 const sucursalSeleccionadaLocal = computed({
@@ -187,8 +187,7 @@ const loadSucursales = async () => {
     const response = await axios.get('/sub-branches/search');
     sucursales.value = response.data.data || [];
     
-    // Si viene una sucursal seleccionada del padre, usarla
-    // Si no, seleccionar la sucursal del usuario si existe en la lista
+    // Si no hay sucursal seleccionada y viene la del usuario, establecerla
     if (!sucursalSeleccionadaLocal.value && props.userSubBranchId) {
       const sucursalExiste = sucursales.value.find(s => s.id === props.userSubBranchId);
       if (sucursalExiste) {
@@ -203,7 +202,7 @@ const loadSucursales = async () => {
 };
 
 const onSucursalChange = () => {
-  isFirstLoad.value = false; // Ya no es la primera carga
+  isFirstLoad.value = false;
   loadPagos();
 };
 
@@ -211,19 +210,21 @@ const loadPagos = async () => {
   try {
     let params = {};
     
-    // Si es la primera carga y la sucursal es la del usuario, NO enviamos parámetro
-    // para que el backend use su lógica automática
-    if (isFirstLoad.value && sucursalSeleccionadaLocal.value === props.userSubBranchId) {
-      params = {};
-    }
-    // Si el usuario cambió la sucursal o seleccionó otra, enviamos el parámetro
-    else if (sucursalSeleccionadaLocal.value) {
-      params = { sub_branch_id: sucursalSeleccionadaLocal.value };
+    // Si hay una sucursal seleccionada, siempre enviarla excepto en la primera carga
+    // cuando coincide con la del usuario
+    if (sucursalSeleccionadaLocal.value) {
+      // Si es la primera carga y es la sucursal del usuario, no enviar parámetro
+      if (isFirstLoad.value && sucursalSeleccionadaLocal.value === props.userSubBranchId) {
+        params = {};
+      } else {
+        // En cualquier otro caso, enviar el parámetro
+        params = { sub_branch_id: sucursalSeleccionadaLocal.value };
+      }
     }
     
     await pagosStore.fetchPagos(params);
     
-    // Después de la primera carga, marcamos que ya no es la primera vez
+    // Marcar que ya no es la primera carga
     if (isFirstLoad.value) {
       isFirstLoad.value = false;
     }
@@ -270,9 +271,17 @@ const onPagoDeleted = () => {
   loadPagos();
 };
 
-onMounted(() => {
-  loadSucursales();
-  loadPagos();
+// Watch para detectar cambios en sucursalSeleccionada desde el padre
+watch(() => props.sucursalSeleccionada, (newVal, oldVal) => {
+  // Solo recargar si cambió y no es undefined
+  if (newVal !== oldVal && newVal !== undefined) {
+    loadPagos();
+  }
+});
+
+onMounted(async () => {
+  await loadSucursales();
+  await loadPagos();
 });
 
 defineExpose({

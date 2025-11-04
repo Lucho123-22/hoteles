@@ -19,7 +19,7 @@ class KardexValorizadoResource extends JsonResource
         return [
             'id'                 => $this->id,
             'fecha'              => Carbon::parse($this->created_at)->format('d-m-Y H:i'),
-            'producto'           => $this->product?->nombre ?? 'N/A',
+            'producto'           => $this->product?->name ?? 'N/A',
             'sucursal'           => $this->subBranch?->nombre ?? 'N/A',
             'tipo_movimiento'    => ucfirst($this->movement_type),
             'cantidad_caja'      => $this->cantidadCaja,

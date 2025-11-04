@@ -15,59 +15,32 @@
                 </IconField>
             </div>
         </template>
-
         <template #empty>
             <div class="text-center p-4">
                 No hay productos en este movimiento
             </div>
         </template>
-
         <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-
-        <Column field="product.name" header="Producto" sortable style="min-width: 16rem">
+        <Column field="tipo" header="Tipo" sortable style="min-width: 5rem"></Column>
+        <Column field="cantidades" header="Cantidad" sortable style="min-width: 8rem"></Column>
+        <Column field="product.name" header="Producto" sortable style="min-width: 30rem">
             <template #body="slotProps">
-                <strong>{{ slotProps.data.product.name }}</strong>
+                <strong>{{ slotProps.data.producto.nombre }}</strong>
             </template>
         </Column>
-
-        <Column field="expiry_date" header="Fecha Vencimiento" sortable style="min-width: 12rem">
+        <Column field="fecha_vencimiento" header="Fecha Vencimiento" sortable style="min-width: 12rem"></Column>
+        <Column field="precio_unitario" header="Precio Unitario" sortable style="min-width: 12rem">
             <template #body="slotProps">
-                <span v-if="slotProps.data.expiry_date">{{ slotProps.data.expiry_date }}</span>
-                <span v-else class="text-gray-400">Sin vencimiento</span>
+                <span>S/ {{ parseFloat(slotProps.data.precio_unitario).toFixed(2) }}</span>
             </template>
         </Column>
-        
-        <Column field="boxes" header="Cajas" sortable style="min-width: 8rem">
+        <Column field="precio_total" header="Precio Total" sortable style="min-width: 12rem">
             <template #body="slotProps">
-                <span>{{ slotProps.data.boxes }}</span>
+                <span class="font-bold text-green-600">S/ {{ parseFloat(slotProps.data.precio_total).toFixed(2)
+                    }}</span>
             </template>
         </Column>
-
-        <Column field="units_per_box" header="Unidades/Caja" sortable style="min-width: 10rem">
-            <template #body="slotProps">
-                <span>{{ slotProps.data.units_per_box }}</span>
-            </template>
-        </Column>
-
-        <Column header="Total Unidades" style="min-width: 10rem">
-            <template #body="slotProps">
-                <span class="font-semibold">{{ slotProps.data.boxes * slotProps.data.units_per_box }}</span>
-            </template>
-        </Column>
-
-        <Column field="unit_price" header="Precio Unitario" sortable style="min-width: 12rem">
-            <template #body="slotProps">
-                <span>S/ {{ parseFloat(slotProps.data.unit_price).toFixed(2) }}</span>
-            </template>
-        </Column>
-
-        <Column field="total_price" header="Precio Total" sortable style="min-width: 12rem">
-            <template #body="slotProps">
-                <span class="font-bold text-green-600">S/ {{ parseFloat(slotProps.data.total_price).toFixed(2) }}</span>
-            </template>
-        </Column>
-
-        <Column header="Acciones" :exportable="false" style="min-width: 10rem">
+        <Column header="">
             <template #body="slotProps">
                 <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)"
                     severity="info" />
@@ -75,29 +48,33 @@
                     @click="confirmDeleteProduct(slotProps.data)" />
             </template>
         </Column>
-
-        <!-- Footer con totales usando ColumnGroup -->
-            <ColumnGroup type="footer">
-                <Row>
-                    <Column footer="" :colspan="6" />
-                    <Column footer="Subtotal:" footerStyle="text-align: right; font-weight: bold; padding-right: 1rem;" />
-                    <Column :footer="`S/ ${subtotal.toFixed(2)}`" footerStyle="font-weight: bold; text-align: left;" />
-                    <Column footer="" />
-                </Row>
-                <Row>
-                    <Column footer="" :colspan="6" />
-                    <Column footer="IGV (18%):" footerStyle="text-align: right; font-weight: bold; padding-right: 1rem;" />
-                    <Column :footer="`S/ ${igvTotal.toFixed(2)}`" footerStyle="font-weight: bold; color: #3B82F6; text-align: left;" />
-                    <Column footer="" />
-                </Row>
-                <Row>
-                    <Column footer="" :colspan="6" />
-                    <Column footer="Total:" footerStyle="text-align: right; font-weight: bold; padding-right: 1rem; solid #e5e7eb; padding-top: 0.5rem;" />
-                    <Column :footer="`S/ ${totalGeneral.toFixed(2)}`" footerStyle="font-weight: bold; color: #10B981; text-align: left; solid #e5e7eb; padding-top: 0.5rem;" />
-                    <Column footer="" />
-                </Row>
-            </ColumnGroup>
+        <ColumnGroup type="footer">
+            <Row>
+                <Column footer="" :colspan="5" />
+                <Column footer="Subtotal:" footerStyle="text-align: right; font-weight: bold; padding-right: 1rem;" />
+                <Column :footer="`S/ ${subtotal.toFixed(2)}`" footerStyle="font-weight: bold; text-align: left;" />
+                <Column footer="" />
+            </Row>
+            <Row>
+                <Column footer="" :colspan="5" />
+                <Column footer="IGV (18%):" footerStyle="text-align: right; font-weight: bold; padding-right: 1rem;" />
+                <Column :footer="`S/ ${igvTotal.toFixed(2)}`"
+                    footerStyle="font-weight: bold; color: #3B82F6; text-align: left;" />
+                <Column footer="" />
+            </Row>
+            <Row>
+                <Column footer="" :colspan="5" />
+                <Column footer="Total:"
+                    footerStyle="text-align: right; font-weight: bold; padding-right: 1rem; solid #e5e7eb; padding-top: 0.5rem;" />
+                <Column :footer="`S/ ${totalGeneral.toFixed(2)}`"
+                    footerStyle="font-weight: bold; color: #10B981; text-align: left; solid #e5e7eb; padding-top: 0.5rem;" />
+                <Column footer="" />
+            </Row>
+        </ColumnGroup>
     </DataTable>
+
+    <UpdateDetailMovement v-model:visible="showEditDialog" :detail="selectedDetail" @updated="handleUpdated" />
+    <DeleteDetailMovement v-model:visible="showDeleteDialog" :detail="selectedDetail" @deleted="handleDeleted" />
 </template>
 
 <script setup lang="ts">
@@ -111,9 +88,12 @@ import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import axios from 'axios';
-
 import ColumnGroup from 'primevue/columngroup';
 import Row from 'primevue/row';
+
+// Importar los modales
+import UpdateDetailMovement from './updateDetailMovement.vue';
+import DeleteDetailMovement from './deleteDetailMovement.vue';
 
 const toast = useToast();
 
@@ -129,7 +109,11 @@ const filters = ref({
     'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
 });
 
-// Computed para totales
+// Estados para los modales
+const showEditDialog = ref(false);
+const showDeleteDialog = ref(false);
+const selectedDetail = ref(null);
+
 const totalUnidades = computed(() => {
     return products.value.reduce((sum, product) => {
         return sum + (product.boxes * product.units_per_box);
@@ -138,28 +122,24 @@ const totalUnidades = computed(() => {
 
 const subtotal = computed(() => {
     return products.value.reduce((sum, product) => {
-        return sum + parseFloat(product.total_price);
+        return sum + parseFloat(product.precio_total);
     }, 0);
 });
 
-// Calcular IGV para un producto individual
 const calcularIGV = (monto: number) => {
-    return parseFloat(monto) * 0.18; // 18% de IGV
+    return parseFloat(monto) * 0.18;
 };
 
-// IGV total
 const igvTotal = computed(() => {
     return products.value.reduce((sum, product) => {
-        return sum + calcularIGV(product.total_price);
+        return sum + calcularIGV(product.precio_total);
     }, 0);
 });
 
-// Total general (subtotal + IGV)
 const totalGeneral = computed(() => {
     return subtotal.value + igvTotal.value;
 });
 
-// Cargar detalles del movimiento
 const loadMovementDetails = async () => {
     if (!props.movement?.data?.id) {
         console.error('No se encontró el ID del movimiento');
@@ -170,14 +150,10 @@ const loadMovementDetails = async () => {
 
     try {
         const response = await axios.get(`/movement-detail/${props.movement.data.id}/details`);
-
         products.value = response.data.data;
-
         console.log('Detalles cargados:', products.value);
-
     } catch (error) {
         console.error('Error al cargar detalles:', error);
-
         toast.add({
             severity: 'error',
             summary: 'Error',
@@ -189,46 +165,48 @@ const loadMovementDetails = async () => {
     }
 };
 
-// Editar producto
 const editProduct = (product: any) => {
-    console.log('Editar producto:', product);
-
-    toast.add({
-        severity: 'info',
-        summary: 'Editar',
-        detail: 'Funcionalidad de edición en desarrollo',
-        life: 3000
-    });
+    selectedDetail.value = product;
+    showEditDialog.value = true;
 };
 
-// Confirmar eliminación
 const confirmDeleteProduct = (product: any) => {
-    console.log('Eliminar producto:', product);
+    selectedDetail.value = product;
+    showDeleteDialog.value = true;
+};
 
+const handleUpdated = () => {
+    loadMovementDetails();
     toast.add({
-        severity: 'warn',
-        summary: 'Eliminar',
-        detail: 'Funcionalidad de eliminación en desarrollo',
+        severity: 'success',
+        summary: 'Actualizado',
+        detail: 'Los detalles se han actualizado correctamente',
         life: 3000
     });
 };
 
-// Recargar detalles cuando se agregue un producto
+const handleDeleted = () => {
+    loadMovementDetails();
+    toast.add({
+        severity: 'success',
+        summary: 'Eliminado',
+        detail: 'El detalle se ha eliminado correctamente',
+        life: 3000
+    });
+};
+
 const reloadDetails = () => {
     loadMovementDetails();
 };
 
-// Exponer método para que el padre pueda recargar
 defineExpose({
     reloadDetails
 });
 
-// Cargar al montar
 onMounted(() => {
     loadMovementDetails();
 });
 
-// Observar cambios en el movement (por si se actualiza desde el padre)
 watch(() => props.movement, () => {
     loadMovementDetails();
 }, { deep: true });

@@ -21,8 +21,7 @@ class PagoPersonalPolicy
      */
     public function view(User $user, PagoPersonal $pagoPersonal): bool
     {
-        return $user->can('view pagos personal') && 
-               $user->sub_branch_id === $pagoPersonal->sub_branch_id;
+        return $user->can('view pagos personal');
     }
 
     /**
@@ -38,9 +37,7 @@ class PagoPersonalPolicy
      */
     public function update(User $user, PagoPersonal $pagoPersonal): bool
     {
-        return $user->can('update pagos personal') && 
-               $user->sub_branch_id === $pagoPersonal->sub_branch_id &&
-               $pagoPersonal->estado === 'pendiente';
+        return $user->can('update pagos personal');
     }
 
     /**
@@ -48,9 +45,7 @@ class PagoPersonalPolicy
      */
     public function delete(User $user, PagoPersonal $pagoPersonal): bool
     {
-        return $user->can('delete pagos personal') && 
-               $user->sub_branch_id === $pagoPersonal->sub_branch_id &&
-               $pagoPersonal->estado === 'pendiente';
+        return $user->can('delete pagos personal');
     }
 
     /**

@@ -38,7 +38,7 @@ class kardexController extends Controller{
                 FilterByProduct::class,
                 FilterByDateRange::class,
                 FilterBySubBranch::class,
-                OrderByLatest::class,
+                //OrderByLatest::class,
             ])
             ->thenReturn();
         $kardex = $query->paginate($perPage);
@@ -54,7 +54,7 @@ class kardexController extends Controller{
                 FilterByDateRange::class,
                 FilterByMovementType::class,
                 FilterByMovementCategory::class,
-                OrderByLatest::class,
+                //OrderByLatest::class,
             ])
             ->thenReturn();
         $kardexEntries = $query->paginate($perPage);
@@ -72,7 +72,6 @@ class kardexController extends Controller{
                 FilterBySubBranch::class,
                 FilterByDateRange::class,
                 FilterByMovementType::class,
-                OrderByLatest::class,
             ])
             ->thenReturn();
         $kardex = $query->paginate($perPage);

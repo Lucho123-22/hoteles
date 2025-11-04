@@ -141,7 +141,7 @@
                         </IconField>
                         <Select v-model="selectedEstadoCategoria" :options="estadoCategoriaOptions" optionLabel="nombre"
                             placeholder="Estado" class="w-full md:w-auto" />
-                        <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadCategoria" />
+                        <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadCategoria" severity="contrast" />
                     </div>
                 </div>
             </template>

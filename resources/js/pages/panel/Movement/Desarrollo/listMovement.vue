@@ -46,7 +46,7 @@
             </template>
         </Column>
         
-        <Column field="code" header="Código" sortable style="min-width: 6rem">
+        <Column field="code" header="Código" sortable style="min-width: 8rem">
             <template #body="slotProps">
                 <span class="font-semibold text-primary">
                     {{ slotProps.data.code || 'Sin código' }}
@@ -178,10 +178,11 @@
             </span>
         </div>
         <template #footer>
-            <Button label="No" icon="pi pi-times" text @click="deleteDialog = false" />
+            <Button label="No" icon="pi pi-times" severity="secondary" text @click="deleteDialog = false" />
             <Button label="Sí" icon="pi pi-check" severity="danger" :loading="deleteLoading" @click="deleteMovement" />
         </template>
     </Dialog>
+    <UpdateMovement ref="updateMovementRef" @actualizado="onMovementUpdated" />
 </template>
 
 <script setup>
@@ -201,6 +202,7 @@ import SelectButton from 'primevue/selectbutton';
 import { useToast } from 'primevue/usetoast';
 import { defineProps, defineEmits } from 'vue';
 import IconField from 'primevue/iconfield';
+import UpdateMovement from './updateMovement.vue';
 
 const props = defineProps({
     refreshTrigger: {
@@ -224,7 +226,7 @@ const deleteDialog = ref(false);
 const movementToDelete = ref(null);
 const actionsMenu = ref();
 const selectedMovement = ref(null);
-
+const updateMovementRef = ref();
 // NUEVO: Filtro por tipo de movimiento
 const selectedMovementType = ref('ingreso'); // Por defecto muestra ingresos
 
@@ -350,14 +352,21 @@ function viewMovement(movement) {
 
 // Editar movimiento
 function editMovement(movement) {
-    // Implementar edición
-    console.log('Editar movimiento:', movement);
-    toast.add({
-        severity: 'info',
-        summary: 'Información',
-        detail: `Editando movimiento: ${movement.code || 'sin código'}`,
-        life: 2000
-    });
+    if (!movement || !movement.id) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'No se puede editar el movimiento: ID no disponible',
+            life: 3000
+        });
+        return;
+    }
+    updateMovementRef.value.open(movement.id);
+}
+
+function onMovementUpdated() {
+    loadMovements(currentPage.value, searchQuery.value);
+    emit('movement-updated');
 }
 
 // NUEVA: Manejar cambio de tipo de movimiento
@@ -433,14 +442,12 @@ async function loadMovements(page = 1, search = '') {
     }
 }
 
-// Manejo de paginación
 function onPage(event) {
-    const page = event.page + 1; // PrimeVue usa índice 0, Laravel usa índice 1
+    const page = event.page + 1;
     currentPage.value = page;
     loadMovements(page, searchQuery.value);
 }
 
-// Búsqueda con debounce
 function onSearch() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -449,13 +456,11 @@ function onSearch() {
     }, 300);
 }
 
-// Confirmar eliminación
 function confirmDeleteMovement(movement) {
     movementToDelete.value = movement;
     deleteDialog.value = true;
 }
 
-// Eliminar movimiento
 async function deleteMovement() {
     if (!movementToDelete.value) return;
 
@@ -473,7 +478,6 @@ async function deleteMovement() {
         deleteDialog.value = false;
         movementToDelete.value = null;
 
-        // Recargar la lista
         await loadMovements(currentPage.value, searchQuery.value);
 
         emit('movement-deleted');
@@ -490,17 +494,14 @@ async function deleteMovement() {
     }
 }
 
-// Watch para refrescar cuando se agregue un nuevo movimiento
 watch(() => props.refreshTrigger, () => {
     loadMovements(currentPage.value, searchQuery.value);
 });
 
-// Cargar al montar el componente
 onMounted(() => {
     loadMovements();
 });
 
-// Exponer función para refrescar desde el padre
 defineExpose({
     refresh: () => loadMovements(currentPage.value, searchQuery.value)
 });

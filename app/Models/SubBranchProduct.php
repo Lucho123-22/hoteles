@@ -35,7 +35,6 @@ class SubBranchProduct extends Model
         'is_fractionable' => 'boolean',
         'is_active' => 'boolean',
     ];
-
     // Relaciones
     public function subBranch(){
         return $this->belongsTo(SubBranch::class);
@@ -55,6 +54,13 @@ class SubBranchProduct extends Model
 
     public function deletedBy(){
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function getSubBranchStock($subBranchId)
+    {
+        return $this->subBranchProducts()
+            ->where('sub_branch_id', $subBranchId)
+            ->first();
     }
 
     // Scopes

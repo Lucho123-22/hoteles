@@ -56,6 +56,11 @@ class Product extends Model implements Auditable
         return $this->hasMany(BookingConsumption::class);
     }
 
+    public function subBranchProducts()
+    {
+        return $this->hasMany(SubBranchProduct::class, 'product_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {

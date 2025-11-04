@@ -1,6 +1,16 @@
 <template>
-  <DataTable ref="dt" v-model:selection="selectedRecords" :value="kardexGeneralStore.kardexData" 
-    dataKey="id" :paginator="true" :rows="15" :filters="filters"
+  <DataTable 
+    ref="dt" 
+    v-model:selection="selectedRecords" 
+    :value="kardexGeneralStore.kardexData" 
+    dataKey="id" 
+    :paginator="true" 
+    :rows="kardexGeneralStore.pagination.per_page"
+    :totalRecords="kardexGeneralStore.pagination.total"
+    :lazy="true"
+    @page="onPage"
+    @sort="onSort"
+    :filters="filters"
     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
     :rowsPerPageOptions="[10, 15, 25, 50]"
     :currentPageReportTemplate="`Mostrando {first} a {last} de ${kardexGeneralStore.pagination.total} registros`"
@@ -12,19 +22,22 @@
     <template #header>
       <div class="flex flex-wrap gap-2 items-center justify-between">
         <div>
-          <h4 class="m-0">Kardex General</h4>
-          <p class="text-sm text-gray-500 mt-1">
-            Total de registros: {{ kardexGeneralStore.pagination.total }}
-          </p>
+          <h4 class="m-0">
+            Kardex General 
+            <Tag severity="contrast" :value="kardexGeneralStore.pagination.total" />
+          </h4>
         </div>
         <div class="flex gap-2">
           <IconField>
             <InputIcon>
               <i class="pi pi-search" />
             </InputIcon>
-            <InputText v-model="filters['global'].value" placeholder="Buscar en resultados..." />
+            <InputText 
+              v-model="searchQuery" 
+              @input="onSearch"
+              placeholder="Buscar en resultados..." 
+            />
           </IconField>
-          <Button icon="pi pi-download" label="Exportar" severity="success" @click="exportData" />
         </div>
       </div>
     </template>
@@ -32,8 +45,8 @@
     <template #empty>
       <div class="text-center py-8">
         <i class="pi pi-inbox text-4xl text-gray-400 mb-3"></i>
-        <p class="text-gray-600">No hay registros de kardex disponibles.</p>
-        <p class="text-sm text-gray-500">Intente ajustar los filtros de búsqueda.</p>
+        <p class="">No hay registros de kardex disponibles.</p>
+        <p class="">Intente ajustar los filtros de búsqueda.</p>
       </div>
     </template>
 
@@ -53,16 +66,6 @@
           <span class="font-semibold">{{ data.product_nombre }}</span>
           <span class="text-xs text-gray-500">ID: {{ data.product_id.substring(0, 8) }}...</span>
         </div>
-      </template>
-    </Column>
-
-    <Column field="sub_branch.name" header="Sucursal" sortable style="min-width: 14rem">
-      <template #body="{ data }">
-        <div v-if="data.sub_branch" class="flex flex-col">
-          <span class="font-semibold">{{ data.sub_branch.name }}</span>
-          <span class="text-xs text-gray-500">{{ data.sub_branch.code }}</span>
-        </div>
-        <span v-else class="text-gray-400">-</span>
       </template>
     </Column>
     
@@ -85,12 +88,8 @@
       </template>
     </Column>
     
-    <Column field="movement_detail_id" header="Código Movimiento" sortable style="min-width: 14rem">
-      <template #body="{ data }">
-        <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-          {{ data.movement_detail_id.substring(0, 16) }}...
-        </span>
-      </template>
+    <Column field="movementDetail" header="Código Movimiento" sortable style="min-width: 14rem">
+      
     </Column>
     
     <Column field="precio_total" header="Precio Total" sortable style="min-width: 11rem">
@@ -132,7 +131,7 @@
       </template>
     </Column>
 
-    <Column field="sale_id" header="Venta ID" sortable style="min-width: 14rem">
+    <Column field="sale_id" header="Venta" sortable style="min-width: 14rem">
       <template #body="{ data }">
         <span v-if="data.sale_id" class="text-xs font-mono">{{ data.sale_id.substring(0, 16) }}...</span>
         <span v-else class="text-gray-400">-</span>
@@ -152,14 +151,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
-import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import { useKardexGeneralStore } from './kardexGeneralStore';
 
@@ -167,8 +165,60 @@ const kardexGeneralStore = useKardexGeneralStore();
 
 const dt = ref();
 const selectedRecords = ref();
+const searchQuery = ref('');
+const searchTimeout = ref(null);
+
 const filters = ref({
-  'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
+  'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
+});
+
+// Manejar cambio de página
+const onPage = (event) => {
+  const page = event.page + 1; // PrimeVue usa índice 0, Laravel usa índice 1
+  const perPage = event.rows;
+  
+  kardexGeneralStore.fetchKardexGeneral({ 
+    page, 
+    perPage,
+    search: searchQuery.value 
+  });
+};
+
+// Manejar ordenamiento
+const onSort = (event) => {
+  const sortField = event.sortField;
+  const sortOrder = event.sortOrder === 1 ? 'asc' : 'desc';
+  
+  kardexGeneralStore.fetchKardexGeneral({ 
+    page: kardexGeneralStore.pagination.current_page,
+    perPage: kardexGeneralStore.pagination.per_page,
+    sort_by: sortField,
+    sort_order: sortOrder,
+    search: searchQuery.value
+  });
+};
+
+// Manejar búsqueda con debounce
+const onSearch = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value);
+  }
+  
+  searchTimeout.value = setTimeout(() => {
+    kardexGeneralStore.fetchKardexGeneral({ 
+      page: 1, // Volver a la primera página al buscar
+      perPage: kardexGeneralStore.pagination.per_page,
+      search: searchQuery.value
+    });
+  }, 500); // Esperar 500ms después de que el usuario deje de escribir
+};
+
+// Cargar datos iniciales
+onMounted(() => {
+  kardexGeneralStore.fetchKardexGeneral({ 
+    page: 1, 
+    perPage: 15 
+  });
 });
 
 // Función para obtener el severity según la categoría de movimiento
@@ -189,10 +239,5 @@ const getCantidadClass = (cantidad) => {
   if (value > 0) return 'text-green-600';
   if (value < 0) return 'text-red-600';
   return 'text-gray-600';
-};
-
-// Función para exportar datos
-const exportData = () => {
-  dt.value.exportCSV();
 };
 </script>

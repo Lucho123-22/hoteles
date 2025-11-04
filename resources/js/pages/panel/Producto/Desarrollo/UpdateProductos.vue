@@ -36,6 +36,8 @@ const producto = ref({
     description: '',
     is_fractionable: false,
     fraction_units: null,
+    min_stock: null,
+    max_stock: null,
 });
 
 const categorias = ref([]);
@@ -70,7 +72,9 @@ const fetchProducto = async () => {
             unit_type: p.unit_type || p.unidad,
             description: p.description || p.descripcion || '',
             is_fractionable: p.is_fractionable || false,
-            fraction_units: p.fraction_units || null
+            fraction_units: p.fraction_units || null,
+            min_stock: p.min_stock || 0,
+            max_stock: p.max_stock || 0
         };
     } catch {
         toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el producto', life: 3000 });
@@ -232,6 +236,39 @@ const updateProducto = async () => {
                     </div>
                 </div>
 
+                <!-- Stock Mínimo y Máximo -->
+                <div class="col-span-12 grid grid-cols-12 gap-4">
+                    <!-- Stock Mínimo -->
+                    <div class="col-span-6">
+                        <label class="block font-bold mb-2">Stock Mínimo</label>
+                        <InputNumber 
+                            v-model="producto.min_stock" 
+                            fluid 
+                            :min="0" 
+                            :step="1" 
+                            placeholder="Stock mínimo permitido"
+                            :class="{ 'p-invalid': submitted && serverErrors.min_stock }" 
+                        />
+                        <small class="text-gray-600">Cantidad mínima en inventario</small>
+                        <small v-if="serverErrors.min_stock" class="text-red-500 block">{{ serverErrors.min_stock[0] }}</small>
+                    </div>
+
+                    <!-- Stock Máximo -->
+                    <div class="col-span-6">
+                        <label class="block font-bold mb-2">Stock Máximo</label>
+                        <InputNumber 
+                            v-model="producto.max_stock" 
+                            fluid 
+                            :min="0" 
+                            :step="1" 
+                            placeholder="Stock máximo permitido"
+                            :class="{ 'p-invalid': submitted && serverErrors.max_stock }" 
+                        />
+                        <small class="text-gray-600">Cantidad máxima en inventario</small>
+                        <small v-if="serverErrors.max_stock" class="text-red-500 block">{{ serverErrors.max_stock[0] }}</small>
+                    </div>
+                </div>
+
                 <!-- Descripción -->
                 <div class="col-span-12">
                     <label class="block font-bold mb-2">Descripción</label>
@@ -244,8 +281,8 @@ const updateProducto = async () => {
         </div>
 
         <template #footer>
-            <Button label="Cancelar" icon="pi pi-times" text @click="dialogVisible = false" />
-            <Button label="Guardar" icon="pi pi-check" @click="updateProducto" :loading="loading" />
+            <Button label="Cancelar" icon="pi pi-times" text @click="dialogVisible = false" severity="secondary"/>
+            <Button label="Guardar" icon="pi pi-check" @click="updateProducto" :loading="loading" severity="contrast"/>
         </template>
     </Dialog>
 </template>

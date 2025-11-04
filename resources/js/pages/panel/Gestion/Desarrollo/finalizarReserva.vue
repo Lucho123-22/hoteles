@@ -18,7 +18,7 @@
                 <div class="flex items-center gap-2 mb-3">
                     <i class="pi pi-home text-surface-600 dark:text-surface-400"></i>
                     <span class="font-semibold text-surface-700 dark:text-surface-300">
-                        Habitación #{{ roomId }}
+                        Habitación #{{ roomId}}
                     </span>
                 </div>
 
@@ -28,7 +28,7 @@
                             <i class="pi pi-user text-primary-500"></i>
                             <span class="text-sm text-surface-600 dark:text-surface-400">Cliente:</span>
                         </div>
-                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.customer }}</span>
+                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.customer || 'Sin cliente' }}</span>
                     </div>
 
                     <div class="flex items-center justify-between p-3 bg-white dark:bg-surface-900 rounded-lg">
@@ -36,7 +36,7 @@
                             <i class="pi pi-sign-in text-green-500"></i>
                             <span class="text-sm text-surface-600 dark:text-surface-400">Check-in:</span>
                         </div>
-                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.check_in_formatted }}</span>
+                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.check_in_formatted || 'N/A' }}</span>
                     </div>
 
                     <div class="flex items-center justify-between p-3 bg-white dark:bg-surface-900 rounded-lg">
@@ -44,7 +44,7 @@
                             <i class="pi pi-clock text-blue-500"></i>
                             <span class="text-sm text-surface-600 dark:text-surface-400">Tiempo total:</span>
                         </div>
-                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.total_time }}</span>
+                        <span class="font-semibold text-surface-800 dark:text-surface-200">{{ roomDetails.total_time || '0h 0m' }}</span>
                     </div>
 
                     <div v-if="roomDetails.has_extra_charges" class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
@@ -106,6 +106,10 @@ const props = defineProps({
         default: false
     },
     roomId: {
+        type: [Number, String],
+        default: null
+    },
+    roomNumber: {
         type: [Number, String],
         default: null
     }

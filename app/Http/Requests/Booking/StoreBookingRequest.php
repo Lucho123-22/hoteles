@@ -14,7 +14,7 @@ class StoreBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Datos básicos del booking
+            // Datos básicos
             'room_id' => 'required|uuid|exists:rooms,id',
             'customers_id' => 'required|uuid|exists:customers,id',
             'rate_type_id' => 'required|uuid|exists:rate_types,id',
@@ -27,7 +27,7 @@ class StoreBookingRequest extends FormRequest
             // Comprobante
             'voucher_type' => 'required|in:ticket,boleta,factura',
             
-            // Pagos (OBLIGATORIOS al inicio)
+            // Pagos
             'payments' => 'required|array|min:1',
             'payments.*.payment_method_id' => 'required|uuid|exists:payment_methods,id',
             'payments.*.amount' => 'required|numeric|min:0.01',
@@ -51,9 +51,9 @@ class StoreBookingRequest extends FormRequest
             'customers_id.exists' => 'El cliente seleccionado no existe',
             'rate_type_id.required' => 'El tipo de tarifa es obligatorio',
             'currency_id.required' => 'La moneda es obligatoria',
-            'total_hours.required' => 'El total de horas es obligatorio',
-            'total_hours.min' => 'Debe contratar al menos 1 hora',
-            'rate_per_hour.required' => 'La tarifa por hora es obligatoria',
+            'total_hours.required' => 'El total de horas o días es obligatorio',
+            'total_hours.min' => 'Debe contratar al menos 1 unidad de tiempo',
+            'rate_per_hour.required' => 'La tarifa base es obligatoria',
             'voucher_type.required' => 'El tipo de comprobante es obligatorio',
             'voucher_type.in' => 'El tipo de comprobante debe ser: ticket, boleta o factura',
             'payments.required' => 'Debe registrar al menos un pago',
@@ -64,31 +64,22 @@ class StoreBookingRequest extends FormRequest
     }
 
     /**
-     * Validación adicional después de las reglas básicas
+     * Validación adicional (solo chequea estructura, no montos)
      */
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // Validar que el total pagado cubra el monto mínimo
-            if ($this->has('payments')) {
-                $totalPaid = collect($this->payments)->sum('amount');
-                $roomSubtotal = $this->rate_per_hour * $this->total_hours;
-                
-                $productsSubtotal = 0;
-                if ($this->has('consumptions')) {
-                    foreach ($this->consumptions as $consumption) {
-                        $productsSubtotal += $consumption['quantity'] * $consumption['unit_price'];
-                    }
-                }
-                
-                $totalRequired = $roomSubtotal + $productsSubtotal;
-                
-                if ($totalPaid < $totalRequired) {
-                    $validator->errors()->add(
-                        'payments', 
-                        "El pago total ({$totalPaid}) no cubre el monto requerido ({$totalRequired})"
-                    );
-                }
+            if (!$this->has('payments')) {
+                return;
+            }
+
+            // Solo aseguramos que exista al menos un pago positivo
+            $totalPaid = collect($this->payments)->sum('amount');
+            if ($totalPaid <= 0) {
+                $validator->errors()->add(
+                    'payments',
+                    'El monto total del pago debe ser mayor a 0.'
+                );
             }
         });
     }

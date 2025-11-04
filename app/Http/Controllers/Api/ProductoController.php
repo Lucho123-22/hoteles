@@ -9,6 +9,7 @@ use App\Http\Resources\Product\ProductResource;
 use App\Http\Resources\Producto\ProductoResource;
 use App\Jobs\AssignProductToSubBranches;
 use App\Jobs\UpdateSubBranchProductsFraction;
+use App\Jobs\UpdateSubBranchProductsStock;
 use App\Models\Product;
 use App\Models\SubBranchProduct;
 use App\Pipelines\FilterByCategory;
@@ -48,11 +49,15 @@ class ProductoController extends Controller{
             $validated = $request->validated();
             $validated['created_by'] = Auth::id();
             $product = Product::create($validated);
-            AssignProductToSubBranches::dispatchSync($product);
+            AssignProductToSubBranches::dispatchSync(
+                $product,
+                (int) $request->min_stock,
+                (int) $request->max_stock
+            );
             DB::commit();
             return response()->json([
                 'state'   => true,
-                'message' => 'Producto registrado exitosamente. La asignación a sub-sucursales se está procesando en segundo plano.',
+                'message' => 'Producto registrado exitosamente. Se asignó a las sub-sucursales.',
                 'product' => $product
             ]);
         } catch (AuthorizationException $e) {
@@ -85,6 +90,13 @@ class ProductoController extends Controller{
         $product->update($validated);
         if ($request->hasAny(['is_fractionable', 'fraction_units'])) {
             UpdateSubBranchProductsFraction::dispatch($product);
+        }
+        if ($request->hasAny(['min_stock', 'max_stock'])) {
+            UpdateSubBranchProductsStock::dispatch(
+                $product,
+                (int) $request->min_stock,
+                (int) $request->max_stock
+            );
         }
         return response()->json([
             'state'   => true,

@@ -47,7 +47,7 @@ async function deleterol() {
             <span v-if="rol">¿Estás seguro de eliminar el rol <b>{{ rol.name }}</b>?</span>
         </div>
         <template #footer>
-            <Button label="No" icon="pi pi-times" text @click="closeDialog" />
+            <Button label="No" icon="pi pi-times" text @click="closeDialog" severity="secondary"/>
             <Button label="Sí" icon="pi pi-check" severity="danger" text @click="deleterol" />
         </template>
     </Dialog>

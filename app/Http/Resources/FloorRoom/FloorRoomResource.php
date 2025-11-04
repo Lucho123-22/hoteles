@@ -17,9 +17,7 @@ class FloorRoomResource extends JsonResource
             'description' => $this->description,
             'total_rooms' => $this->rooms->count(),
             'available_rooms' => $this->availableRooms->count(),
-
             'rooms' => $this->rooms->map(function ($room) {
-                // Obtener reserva activa (en uso actualmente)
                 $activeBooking = $room->bookings
                     ->whereIn('status', ['checked_in'])
                     ->sortByDesc('check_in')
@@ -34,33 +32,38 @@ class FloorRoomResource extends JsonResource
 
                 if ($activeBooking && $activeBooking->check_in) {
                     $checkIn = Carbon::parse($activeBooking->check_in);
-                    $checkOut = $activeBooking->check_out ? Carbon::parse($activeBooking->check_out) : null;
+                    $now = now();
+                    
+                    // Calcular check_out basado en total_hours
+                    if ($activeBooking->total_hours) {
+                        $checkOut = $checkIn->copy()->addHours($activeBooking->total_hours);
+                    } elseif ($activeBooking->check_out) {
+                        $checkOut = Carbon::parse($activeBooking->check_out);
+                    }
 
-                    // Calcular tiempo transcurrido
-                    $diff = now()->diff($checkIn);
-                    $hours = $diff->h + ($diff->days * 24);
-                    $minutes = $diff->i;
-                    $seconds = $diff->s;
+                    // CORRECCIÓN: Calcular tiempo transcurrido correctamente
+                    $totalSeconds = $now->diffInSeconds($checkIn);
+                    $hours = floor($totalSeconds / 3600);
+                    $minutes = floor(($totalSeconds % 3600) / 60);
+                    $seconds = $totalSeconds % 60;
+                    
                     $elapsed = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-                    $elapsedMinutes = ($hours * 60) + $minutes;
+                    $elapsedMinutes = floor($totalSeconds / 60);
 
-                    // Calcular tiempo restante (si hay check_out)
+                    // Calcular tiempo restante
                     if ($checkOut) {
-                        $remainingDiff = now()->diff($checkOut, false);
-                        $remainingTime = $remainingDiff->invert
-                            ? '-' . sprintf('%02d:%02d:%02d', $remainingDiff->h + ($remainingDiff->days * 24), $remainingDiff->i, $remainingDiff->s)
-                            : sprintf('%02d:%02d:%02d', $remainingDiff->h + ($remainingDiff->days * 24), $remainingDiff->i, $remainingDiff->s);
+                        if ($now->greaterThan($checkOut)) {
+                            // Tiempo expirado
+                            $remainingSeconds = $now->diffInSeconds($checkOut);
+                            $remainingTime = '-' . $this->formatTimeFromSeconds($remainingSeconds);
+                        } else {
+                            // Tiempo restante
+                            $remainingSeconds = $now->diffInSeconds($checkOut);
+                            $remainingTime = $this->formatTimeFromSeconds($remainingSeconds);
+                        }
                     }
 
-                    // Buscar último pago completado y obtener cliente
-                    $lastPayment = $activeBooking->payments()
-                        ->where('status', 'completed')
-                        ->latest('payment_date')
-                        ->first();
-
-                    if ($lastPayment && $lastPayment->booking && $lastPayment->booking->customer) {
-                        $customerName = $lastPayment->booking->customer->name;
-                    }
+                    $customerName = $activeBooking->customer?->name;
                 }
 
                 return [
@@ -70,19 +73,35 @@ class FloorRoomResource extends JsonResource
                     'status' => $room->status,
                     'is_active' => $room->is_active,
                     'room_type' => $room->roomType?->name,
-
+                    
                     // Tiempos
                     'check_in' => $checkIn?->toDateTimeString(),
                     'check_out' => $checkOut?->toDateTimeString(),
                     'elapsed_time' => $elapsed,
                     'elapsed_minutes' => $elapsedMinutes,
                     'remaining_time' => $remainingTime,
-
+                    
                     // Cliente y reserva
                     'customer' => $customerName,
                     'booking_code' => $activeBooking?->booking_code,
+                    
+                    // Información adicional
+                    'total_hours_contracted' => $activeBooking?->total_hours,
+                    'rate_type' => $activeBooking?->rateType?->name,
                 ];
             }),
         ];
+    }
+
+    /**
+     * Formatear segundos a HH:MM:SS
+     */
+    private function formatTimeFromSeconds(int $totalSeconds): string
+    {
+        $hours = floor(abs($totalSeconds) / 3600);
+        $minutes = floor((abs($totalSeconds) % 3600) / 60);
+        $seconds = abs($totalSeconds) % 60;
+        
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     }
 }

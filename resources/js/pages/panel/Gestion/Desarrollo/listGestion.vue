@@ -79,29 +79,43 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Timer con alerta de tiempo vencido -->
+                                            <!-- Timer REGRESIVO con alerta de tiempo vencido -->
                                             <div 
-                                                v-if="room.status === 'occupied' || room.status === 'available'"
+                                                v-if="room.status === 'occupied'"
                                                 class="bg-surface-100 dark:bg-surface-700 px-4 py-2 rounded-lg transition-all duration-300"
                                                 :class="{ 
                                                     'animate-pulse bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400': isNearCheckout(room.check_out),
-                                                    'animate-bounce bg-red-100 dark:bg-red-900/30 border-2 border-red-500': isCheckoutExpired(room.check_out)
+                                                    'animate-bounce bg-red-100 dark:bg-red-900/30 border-2 border-red-500': isCheckoutExpired(room.check_out),
+                                                    'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-400': isSuspiciousCheckout(room.check_out)
                                                 }"
                                             >
                                                 <div class="flex items-center gap-2">
                                                     <i class="pi pi-clock text-lg" :class="{
                                                         'text-orange-600': isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out),
-                                                        'text-red-600': isCheckoutExpired(room.check_out)
+                                                        'text-red-600': isCheckoutExpired(room.check_out),
+                                                        'text-yellow-600': isSuspiciousCheckout(room.check_out),
+                                                        'text-primary-600': !isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out) && !isSuspiciousCheckout(room.check_out)
                                                     }"></i>
                                                     <span class="font-mono text-lg font-semibold" :class="{
                                                         'text-orange-600 dark:text-orange-400': isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out),
-                                                        'text-red-600 dark:text-red-400': isCheckoutExpired(room.check_out)
+                                                        'text-red-600 dark:text-red-400': isCheckoutExpired(room.check_out),
+                                                        'text-yellow-600 dark:text-yellow-400': isSuspiciousCheckout(room.check_out),
+                                                        'text-primary-700 dark:text-primary-300': !isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out) && !isSuspiciousCheckout(room.check_out)
                                                     }">
-                                                        {{ calculateElapsedTime(room.check_in) }}
+                                                        {{ calculateRemainingTime(room.check_in, room.check_out) }}
                                                     </span>
                                                 </div>
                                                 <div v-if="isCheckoutExpired(room.check_out)" class="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
                                                     ¡TIEMPO VENCIDO!
+                                                </div>
+                                                <div v-else-if="isNearCheckout(room.check_out)" class="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-1">
+                                                    ¡Próximo a vencer!
+                                                </div>
+                                                <div v-else-if="isSuspiciousCheckout(room.check_out)" class="text-xs text-yellow-600 dark:text-yellow-400 font-semibold mt-1">
+                                                    ⚠️ Datos sospechosos
+                                                </div>
+                                                <div v-else class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                                                    Tiempo restante
                                                 </div>
                                             </div>
                                             
@@ -140,7 +154,7 @@
                                                         severity="danger"
                                                         outlined
                                                         size="small"
-                                                        @click="finishBooking(room.id)"
+                                                        @click="finishBooking(room.id, room.room_number)"
                                                         v-tooltip.top="'Finalizar reserva'"
                                                     />
                                                 </template>
@@ -232,29 +246,43 @@
                                         </div>
                                     </div>
 
-                                    <!-- Timer con alerta de tiempo vencido -->
+                                    <!-- Timer REGRESIVO con alerta de tiempo vencido -->
                                     <div 
-                                        v-if="room.status === 'occupied' || room.status === 'available'"
+                                        v-if="room.status === 'occupied'"
                                         class="bg-surface-100 dark:bg-surface-700 px-4 py-3 rounded-lg mb-4 transition-all duration-300"
                                         :class="{ 
                                             'animate-pulse bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400': isNearCheckout(room.check_out),
-                                            'animate-bounce bg-red-100 dark:bg-red-900/30 border-2 border-red-500': isCheckoutExpired(room.check_out)
+                                            'animate-bounce bg-red-100 dark:bg-red-900/30 border-2 border-red-500': isCheckoutExpired(room.check_out),
+                                            'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-400': isSuspiciousCheckout(room.check_out)
                                         }"
                                     >
                                         <div class="flex items-center justify-center gap-2">
                                             <i class="pi pi-clock text-lg" :class="{
                                                 'text-orange-600': isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out),
-                                                'text-red-600': isCheckoutExpired(room.check_out)
+                                                'text-red-600': isCheckoutExpired(room.check_out),
+                                                'text-yellow-600': isSuspiciousCheckout(room.check_out),
+                                                'text-primary-600': !isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out) && !isSuspiciousCheckout(room.check_out)
                                             }"></i>
                                             <span class="font-mono text-lg font-semibold" :class="{
                                                 'text-orange-600 dark:text-orange-400': isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out),
-                                                'text-red-600 dark:text-red-400': isCheckoutExpired(room.check_out)
+                                                'text-red-600 dark:text-red-400': isCheckoutExpired(room.check_out),
+                                                'text-yellow-600 dark:text-yellow-400': isSuspiciousCheckout(room.check_out),
+                                                'text-primary-700 dark:text-primary-300': !isNearCheckout(room.check_out) && !isCheckoutExpired(room.check_out) && !isSuspiciousCheckout(room.check_out)
                                             }">
-                                                {{ calculateElapsedTime(room.check_in) }}
+                                                {{ calculateRemainingTime(room.check_in, room.check_out) }}
                                             </span>
                                         </div>
                                         <div v-if="isCheckoutExpired(room.check_out)" class="text-xs text-center text-red-600 dark:text-red-400 font-semibold mt-1">
                                             ¡TIEMPO VENCIDO!
+                                        </div>
+                                        <div v-else-if="isNearCheckout(room.check_out)" class="text-xs text-center text-orange-600 dark:text-orange-400 font-semibold mt-1">
+                                            ¡Próximo a vencer!
+                                        </div>
+                                        <div v-else-if="isSuspiciousCheckout(room.check_out)" class="text-xs text-center text-yellow-600 dark:text-yellow-400 font-semibold mt-1">
+                                            ⚠️ Datos sospechosos
+                                        </div>
+                                        <div v-else class="text-xs text-center text-surface-500 dark:text-surface-400 mt-1">
+                                            Tiempo restante
                                         </div>
                                     </div>
 
@@ -297,7 +325,7 @@
                                                 outlined
                                                 class="flex-1"
                                                 size="small"
-                                                @click="finishBooking(room.id)"
+                                                @click="finishBooking(room.id, room.room_number)"
                                                 v-tooltip.top="'Finalizar reserva'"
                                             />
                                         </template>
@@ -393,6 +421,7 @@
         <FinalizarReserva 
             v-model:visible="showFinalizarDialog" 
             :roomId="selectedRoomId"
+            :roomNumber="selectedRoomNumber"
             @booking-finished="handleBookingFinished"
         />
     </div>
@@ -422,6 +451,7 @@ const showExtenderDialog = ref(false);
 const showCobrarDialog = ref(false);
 const showFinalizarDialog = ref(false);
 const selectedRoomId = ref(null);
+const selectedRoomNumber = ref(null);
 let timerInterval = null;
 
 onMounted(async () => {
@@ -448,29 +478,36 @@ const fetchFloors = async () => {
         floors.value = result.data;
     } catch (error) {
         console.error('Error al cargar pisos y habitaciones:', error);
+        floors.value = [];
     } finally {
         loading.value = false;
     }
 };
 
-const calculateElapsedTime = (checkInTime) => {
-    if (!checkInTime) {
+/**
+ * Calcula el tiempo RESTANTE (regresivo) hasta el check-out
+ * Si el tiempo ya expiró, muestra valores negativos (ej: -00:15:30)
+ */
+const calculateRemainingTime = (checkInTime, checkOutTime) => {
+    if (!checkOutTime) {
         return '00:00:00';
     }
     
-    // Parsear la fecha de check-in
-    const checkIn = new Date(checkInTime);
+    const checkOut = new Date(checkOutTime);
+    const diff = checkOut - currentTime.value;
     
-    // Calcular la diferencia en milisegundos
-    const diff = currentTime.value - checkIn;
+    // Si el tiempo ya expiró (diff negativo), mostrar con signo negativo
+    const isExpired = diff < 0;
+    const absDiff = Math.abs(diff);
     
     // Convertir a horas, minutos y segundos
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    const hours = Math.floor(absDiff / (1000 * 60 * 60));
+    const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((absDiff % (1000 * 60)) / 1000);
     
-    // Formatear con ceros a la izquierda
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    // Formatear con ceros a la izquierda y signo negativo si aplica
+    const sign = isExpired ? '-' : '';
+    return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
 const formatCheckIn = (checkInTime) => {
@@ -503,6 +540,12 @@ const isNearCheckout = (checkOutTime) => {
     }
     
     const checkOut = new Date(checkOutTime);
+    
+    // Validar que la fecha sea válida
+    if (isNaN(checkOut.getTime())) {
+        return false;
+    }
+    
     const diff = checkOut - currentTime.value;
     
     // Convertir a minutos
@@ -518,14 +561,35 @@ const isCheckoutExpired = (checkOutTime) => {
     }
     
     const checkOut = new Date(checkOutTime);
+    
+    // Validar que la fecha sea válida
+    if (isNaN(checkOut.getTime())) {
+        return false;
+    }
+    
     const diff = checkOut - currentTime.value;
     
     // Retorna true si el tiempo ya pasó (diff es negativo o cero)
     return diff <= 0;
 };
 
-const finishBooking = (roomId) => {
+/**
+ * Verifica si el check_out tiene datos sospechosos (muy lejos en el futuro)
+ */
+const isSuspiciousCheckout = (checkOutTime) => {
+    if (!checkOutTime) return false;
+    
+    const checkOut = new Date(checkOutTime);
+    const diff = checkOut - currentTime.value;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    // Si faltan más de 48 horas, es sospechoso
+    return hours > 48;
+};
+
+const finishBooking = (roomId, roomNumber) => {
     selectedRoomId.value = roomId;
+    selectedRoomNumber.value = roomNumber;
     showFinalizarDialog.value = true;
 };
 
@@ -566,6 +630,7 @@ const handleBookingFinished = async () => {
     await fetchFloors();
     showFinalizarDialog.value = false;
     selectedRoomId.value = null;
+    selectedRoomNumber.value = null;
 };
 
 const getStatusLabel = (status) => {

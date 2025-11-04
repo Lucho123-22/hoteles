@@ -52,8 +52,8 @@ async function deleteProducto() {
             <span v-if="producto">¿Estás seguro de eliminar el producto <b>{{ producto.nombre }}</b>?</span>
         </div>
         <template #footer>
-            <Button label="No" icon="pi pi-times" text @click="closeDialog" />
-            <Button label="Sí" icon="pi pi-check" @click="deleteProducto" />
+            <Button label="No" icon="pi pi-times" text @click="closeDialog" severity="secondary"/>
+            <Button label="Sí" icon="pi pi-check" @click="deleteProducto" severity="contrast"/>
         </template>
     </Dialog>
 </template>

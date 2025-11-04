@@ -203,7 +203,7 @@ const loadEmpleadosYSucursales = async () => {
     try {
         const [empleadosRes, sucursalesRes] = await Promise.all([
             axios.get('/usuarios'),
-            axios.get('/sub-branches')
+            axios.get('/sub-branches/search')
         ]);
         empleados.value = empleadosRes.data.data || empleadosRes.data;
         sucursales.value = sucursalesRes.data.data || sucursalesRes.data;

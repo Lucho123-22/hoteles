@@ -135,7 +135,7 @@ onMounted(loadProductos);
                         optionLabel="name"
                         placeholder="Estado"
                     />
-                    <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadProductos" />
+                    <Button icon="pi pi-refresh" outlined rounded aria-label="Refresh" @click="loadProductos" severity="contrast"/>
                 </div>
             </div>
         </template>
