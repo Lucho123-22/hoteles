@@ -137,4 +137,7 @@ class ProductoController extends Controller{
         $productos = $query->paginate($perPage);
         return ProductResource::collection($productos);
     }
+    public function addProducto(){
+        
+    }
 }

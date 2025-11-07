@@ -653,8 +653,11 @@ const getStatusSeverity = (status) => {
     return severities[status] || null;
 };
 
-const viewRoomDetails = (roomId) => {
-    console.log('Navegando a habitación:', roomId);
-    router.visit(`/panel/cuarto/${roomId}`);
+const viewRoomDetails = (roomId, roomStatus) => {
+    console.log('Navegando a habitación:', roomId, 'con estado:', roomStatus);
+    const url = roomStatus === 'occupied'
+        ? `/panel/cuarto/${roomId}/detalles-checkout`
+        : `/panel/cuarto/${roomId}`;
+    router.visit(url);
 };
 </script>

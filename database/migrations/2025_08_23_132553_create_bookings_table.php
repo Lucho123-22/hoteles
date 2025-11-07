@@ -24,6 +24,7 @@ return new class extends Migration
             $table->datetime('check_in');
             $table->datetime('check_out');
             $table->datetime('actual_check_out')->nullable();
+            $table->integer('quantity')->default(1)->comment('Cantidad de unidades reservadas (por ejemplo, días o paquetes de horas)');
             $table->integer('total_hours');
             $table->integer('actual_hours')->nullable();
             $table->decimal('rate_per_unit', 10, 2)->nullable();

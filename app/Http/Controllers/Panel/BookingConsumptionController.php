@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\BookingConsumption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BookingConsumptionController extends Controller{
-    // En BookingConsumptionController.php
     public function index(Request $request){
         try {
             $query = BookingConsumption::with(['product', 'booking']);
@@ -47,6 +48,83 @@ class BookingConsumptionController extends Controller{
                 'success' => false,
                 'message' => 'Error cargando consumos: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    public function store(Request $request){
+        $request->validate([
+            'booking_id' => 'required|uuid|exists:bookings,id',
+            'product_id' => 'required|uuid|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+        try {
+            DB::beginTransaction();
+            $consumption = BookingConsumption::addProducto(
+                $request->booking_id,
+                $request->product_id,
+                $request->quantity,
+                $request->notes
+            );
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Producto agregado exitosamente',
+                'data' => $consumption->load(['product', 'booking'])
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al agregar producto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    public function update(Request $request, $id){
+        $request->validate([
+            'quantity' => 'nullable|integer|min:1',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+        try {
+            DB::beginTransaction();
+            $consumption = BookingConsumption::findOrFail($id);
+            $consumption->updateProducto(
+                $request->quantity,
+                $request->notes
+            );
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Producto actualizado exitosamente',
+                'data' => $consumption->fresh()->load(['product', 'booking'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al actualizar producto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    public function destroy($id){
+        try {
+            DB::beginTransaction();
+            $consumption = BookingConsumption::findOrFail($id);
+            $consumption->deleteProducto();
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Producto eliminado exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar producto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         }
     }
 }

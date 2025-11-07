@@ -22,7 +22,7 @@ class Booking extends Model implements AuditableContract{
 
     protected $fillable = [
         'booking_code', 'room_id', 'client_id', 'rate_type_id', 'currency_id',
-        'check_in', 'check_out', 'total_hours', 'rate_per_unit', 'subtotal',
+        'check_in', 'check_out', 'total_hours', 'rate_per_unit', 'subtotal','quantity',
         'tax_amount', 'discount_amount', 'total_amount', 'paid_amount','customers_id',
         'status', 'notes', 'cancelled_at', 'cancellation_reason', 'cancelled_by','rate_per_hour',
         'room_subtotal','products_subtotal','tax_amount','discount_amount','total_amount','updated_by',
