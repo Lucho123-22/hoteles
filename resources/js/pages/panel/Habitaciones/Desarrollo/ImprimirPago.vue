@@ -232,7 +232,7 @@ const generatePDF = async () => {
         pdf.text('HABITACIÓN', margin, y);
         y += lineHeight;
         pdf.text(`${booking?.room?.number || 'N/A'} - ${booking?.total_hours || 0} hrs`, margin + 2, y);
-        pdf.text(`S/. ${(booking?.room_subtotal || 0).toFixed(2)}`, 50, y, { align: 'right' });
+        pdf.text(`S/. ${(booking?.rate_per_unit || 0).toFixed(2)}`, 50, y, { align: 'right' });
         pdf.text(`S/. ${(booking?.room_subtotal || 0).toFixed(2)}`, 75, y, { align: 'right' });
         y += lineHeight + 2;
 

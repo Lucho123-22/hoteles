@@ -1,6 +1,6 @@
 <template>
 
-    <Head title="habitacion Ocupada" />
+    <Head title="Ocupada" />
     <AppLayouth>
         <div>
             <template v-if="isLoading">
@@ -8,7 +8,7 @@
             </template>
             <template v-else>
                 <div class="card">
-
+                    <listRommDetails :roomData="roomData" />
                 </div>
             </template>
         </div>
@@ -16,10 +16,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import AppLayouth from '@/layout/AppLayouth.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
+import listRommDetails from './Desarrollo/listRommDetails.vue';
+
+const page = usePage();
+
+const roomData = computed(() => page.props.data?.data || page.props.data);
 
 const isLoading = ref(true);
 

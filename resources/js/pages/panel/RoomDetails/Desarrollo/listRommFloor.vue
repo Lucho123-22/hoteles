@@ -22,6 +22,17 @@
                             </div>
                         </div>
                     </div>
+                    <div class="flex gap-2">
+                        <Tag 
+                            :value="getStatusLabel(roomData?.status)" 
+                            :severity="getStatusSeverity(roomData?.status)"
+                            class="text-sm"
+                        />
+                        <Badge 
+                            :value="roomData?.is_active ? 'Activa' : 'Inactiva'" 
+                            :severity="roomData?.is_active ? 'success' : 'secondary'"
+                        />
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -327,25 +338,218 @@
         </div>
     </div>
 
-    <!-- Diálogos Modulares -->
-    <StartServiceDialog 
-        v-model:visible="showStartDialog"
-        :service-data="startServiceData"
-        :payment-methods="paymentMethods"
-        :loading="processingPayment"
-        @confirm="handleStartService"
-        @cancel="showStartDialog = false"
-    />
+    <!-- Dialog: INICIAR SERVICIO -->
+    <Dialog 
+        v-model:visible="showStartDialog" 
+        modal 
+        header="Iniciar Servicio y Procesar Pago"
+        :style="{ width: '550px' }"
+    >
+        <div class="space-y-4">
+            <Message severity="success" :closable="false">
+                ¿Confirma iniciar el servicio con los siguientes datos?
+            </Message>
 
-    <FinishServiceDialog 
-        v-model:visible="showFinishDialog"
-        :service-data="finishServiceData"
-        :time-data="timeFinishData"
-        :payment-methods="paymentMethods"
-        :loading="processingFinish"
-        @confirm="handleFinishService"
-        @cancel="showFinishDialog = false"
-    />
+            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Cliente:</span>
+                        <span class="font-semibold">{{ selectedClient?.name }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Habitación:</span>
+                        <span class="font-semibold">{{ roomData?.room_number }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Tarifa:</span>
+                        <span class="font-semibold">{{ getRateLabel(selectedRate) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Tiempo:</span>
+                        <span class="font-semibold">{{ timeAmount }} {{ getTimeUnit(selectedRate) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Caja:</span>
+                        <span class="font-semibold text-green-600">{{ userCashRegister?.name }}</span>
+                    </div>
+                    <div v-if="products.length > 0" class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Productos:</span>
+                        <span class="font-semibold">{{ products.length }} item(s)</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t">
+                        <span class="text-lg font-bold">Total a pagar:</span>
+                        <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                            {{ selectedCurrency?.symbol || 'S/' }} {{ calculateTotal() }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Método de Pago -->
+            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+                <h4 class="font-semibold mb-3 text-surface-900 dark:text-surface-0">
+                    <i class="pi pi-credit-card mr-2"></i>Método de Pago
+                </h4>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div 
+                        v-for="method in paymentMethods" 
+                        :key="method.id"
+                        @click="selectedPaymentMethod = method"
+                        :class="[
+                            'p-3 rounded-lg border-2 cursor-pointer transition-all',
+                            selectedPaymentMethod?.id === method.id 
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-lg' 
+                                : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 hover:border-primary-300'
+                        ]"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-sm">{{ method.name }}</span>
+                            <i v-if="selectedPaymentMethod?.id === method.id" class="pi pi-check-circle text-primary-500"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Número de Operación -->
+                <div v-if="selectedPaymentMethod?.requires_reference" class="mt-3">
+                    <label class="block text-sm font-medium mb-2">
+                        Número de Operación *
+                    </label>
+                    <InputText 
+                        v-model="operationNumber" 
+                        placeholder="Ingrese número de operación"
+                        class="w-full"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <template #footer>
+            <Button label="Cancelar" severity="secondary" text @click="showStartDialog = false" />
+            <Button 
+                label="Iniciar y Pagar" 
+                icon="pi pi-check" 
+                severity="success"
+                @click="processStartService"
+                :loading="processingPayment"
+                :disabled="!selectedPaymentMethod || (selectedPaymentMethod?.requires_reference && !operationNumber)"
+            />
+        </template>
+    </Dialog>
+
+    <!-- Dialog: FINALIZAR SERVICIO -->
+    <Dialog 
+        v-model:visible="showFinishDialog" 
+        modal 
+        header="Finalizar Servicio"
+        :style="{ width: '550px' }"
+    >
+        <div class="space-y-4">
+            <Message severity="info" :closable="false">
+                ¿Desea finalizar el servicio?
+            </Message>
+
+            <!-- Resumen de tiempo -->
+            <div class="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-2 border-yellow-200 dark:border-yellow-700">
+                <h4 class="font-semibold mb-2 text-yellow-800 dark:text-yellow-300">
+                    <i class="pi pi-clock mr-2"></i>Resumen de Tiempo
+                </h4>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>Tiempo contratado:</span>
+                        <span class="font-semibold">{{ timeAmount }} {{ getTimeUnit(selectedRate) }}</span>
+                    </div>
+                    <div class="flex justify-between text-red-600 dark:text-red-400" v-if="remainingSeconds < 0">
+                        <span>Tiempo extra:</span>
+                        <span class="font-semibold">{{ formatExtraTime() }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Cliente:</span>
+                        <span class="font-semibold">{{ selectedClient?.name }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-surface-600 dark:text-surface-400">Habitación:</span>
+                        <span class="font-semibold">{{ roomData?.room_number }}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t">
+                        <span class="text-lg font-bold">Saldo pendiente:</span>
+                        <span class="text-lg font-bold text-orange-600 dark:text-orange-400">
+                            {{ selectedCurrency?.symbol || 'S/' }} 0.00
+                        </span>
+                    </div>
+                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-2">
+                        * El tiempo extra (si existe) se calculará y cobrará automáticamente
+                    </p>
+                </div>
+            </div>
+
+            <!-- Método de Pago para saldo pendiente (si hay) -->
+            <div v-if="false" class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+                <h4 class="font-semibold mb-3 text-surface-900 dark:text-surface-0">
+                    <i class="pi pi-credit-card mr-2"></i>Método de Pago (Saldo Pendiente)
+                </h4>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div 
+                        v-for="method in paymentMethods" 
+                        :key="method.id"
+                        @click="selectedFinishPaymentMethod = method"
+                        :class="[
+                            'p-3 rounded-lg border-2 cursor-pointer transition-all',
+                            selectedFinishPaymentMethod?.id === method.id 
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-lg' 
+                                : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 hover:border-primary-300'
+                        ]"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-sm">{{ method.name }}</span>
+                            <i v-if="selectedFinishPaymentMethod?.id === method.id" class="pi pi-check-circle text-primary-500"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="selectedFinishPaymentMethod?.requires_reference" class="mt-3">
+                    <label class="block text-sm font-medium mb-2">
+                        Número de Operación *
+                    </label>
+                    <InputText 
+                        v-model="finishOperationNumber" 
+                        placeholder="Ingrese número de operación"
+                        class="w-full"
+                    />
+                </div>
+            </div>
+
+            <!-- Notas opcionales -->
+            <div>
+                <label class="block text-sm font-medium mb-2">
+                    Notas (Opcional)
+                </label>
+                <Textarea 
+                    v-model="finishNotes" 
+                    rows="3"
+                    placeholder="Observaciones al finalizar el servicio"
+                    class="w-full"
+                />
+            </div>
+        </div>
+
+        <template #footer>
+            <Button label="Cancelar" severity="secondary" @click="showFinishDialog = false" />
+            <Button 
+                label="Finalizar Servicio" 
+                icon="pi pi-check" 
+                severity="danger"
+                @click="processFinishService"
+                :loading="processingFinish"
+            />
+        </template>
+    </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -353,7 +557,11 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Badge from 'primevue/badge';
+import Dialog from 'primevue/dialog';
 import InputNumber from 'primevue/inputnumber';
+import InputText from 'primevue/inputtext';
+import Textarea from 'primevue/textarea';
+import Message from 'primevue/message';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 
@@ -361,8 +569,6 @@ import axios from 'axios';
 import CustomerRegistration from './CustomerRegistration.vue';
 import ProductSales from './ProductSales.vue';
 import BillingSummary from './BillingSummary.vue';
-import StartServiceDialog from './StartServiceDialog.vue';
-import FinishServiceDialog from './FinishServiceDialog.vue';
 
 interface Props {
     roomData?: any;
@@ -391,11 +597,18 @@ const rateTypes = ref<any[]>([]);
 const paymentMethods = ref<any[]>([]);
 const userCashRegister = ref<any>(null);
 
-// Estados para diálogos
+// Estados para INICIAR servicio
 const showStartDialog = ref(false);
 const processingPayment = ref(false);
+const selectedPaymentMethod = ref<any>(null);
+const operationNumber = ref<string>('');
+
+// Estados para FINALIZAR servicio
 const showFinishDialog = ref(false);
 const processingFinish = ref(false);
+const selectedFinishPaymentMethod = ref<any>(null);
+const finishOperationNumber = ref<string>('');
+const finishNotes = ref<string>('');
 
 // Estado del booking actual
 const currentBookingId = ref<string | null>(null);
@@ -418,31 +631,6 @@ const progressPercentage = computed(() => {
     const percentage = (remainingSeconds.value / totalSeconds.value) * 100;
     return Math.max(0, Math.min(100, percentage));
 });
-
-const startServiceData = computed(() => ({
-    clientName: selectedClient.value?.name || '',
-    roomNumber: props.roomData?.room_number || '',
-    rateLabel: getRateLabel(selectedRate.value),
-    timeAmount: timeAmount.value,
-    timeUnit: getTimeUnit(selectedRate.value),
-    cashRegisterName: userCashRegister.value?.name || '',
-    productsCount: products.value.length,
-    currencySymbol: selectedCurrency.value?.symbol || 'S/',
-    totalAmount: calculateTotal()
-}));
-
-const finishServiceData = computed(() => ({
-    clientName: selectedClient.value?.name || '',
-    roomNumber: props.roomData?.room_number || '',
-    currencySymbol: selectedCurrency.value?.symbol || 'S/',
-    pendingAmount: 0.00
-}));
-
-const timeFinishData = computed(() => ({
-    contractedTime: `${timeAmount.value} ${getTimeUnit(selectedRate.value)}`,
-    extraTime: formatExtraTime(),
-    hasExtraTime: remainingSeconds.value < 0
-}));
 
 // ==========================================
 // EVENTOS DE COMPONENTES
@@ -511,6 +699,10 @@ const calculateTotalSeconds = () => {
     return timeAmount.value * multipliers[selectedRate.value];
 };
 
+const getQuantity = () => {
+    // Simplemente retorna lo que el usuario ingresó
+    return timeAmount.value;
+};
 const formatExtraTime = () => {
     const extraSeconds = Math.abs(remainingSeconds.value);
     const hours = Math.floor(extraSeconds / 3600);
@@ -545,6 +737,7 @@ const getStatusSeverity = (status: string) => {
 // INICIAR SERVICIO
 // ==========================================
 const confirmStartService = async () => {
+    // Validaciones previas
     if (!selectedClient.value) {
         toast.add({
             severity: 'warn',
@@ -599,10 +792,42 @@ const confirmStartService = async () => {
     }
 };
 
-const handleStartService = async (data: { paymentMethod: any; operationNumber: string }) => {
+const processStartService = async () => {
+    // Validar método de pago
+    if (!selectedPaymentMethod.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Método de Pago Requerido',
+            detail: 'Seleccione un método de pago',
+            life: 3000
+        });
+        return;
+    }
+
+    if (selectedPaymentMethod.value?.requires_reference && !operationNumber.value.trim()) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Número de Operación Requerido',
+            detail: 'Ingrese el número de operación',
+            life: 3000
+        });
+        return;
+    }
+
+    if (!userCashRegister.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Caja No Disponible',
+            detail: 'No tienes una caja abierta asignada',
+            life: 4000
+        });
+        return;
+    }
+
     processingPayment.value = true;
 
     try {
+        // Calcular totales
         const roomSubtotal = getCurrentRoomPrice() * timeAmount.value;
         const productsSubtotal = products.value.reduce((sum, p) => {
             const quantity = parseFloat(p.quantity || p.cantidad || 0);
@@ -611,6 +836,7 @@ const handleStartService = async (data: { paymentMethod: any; operationNumber: s
         }, 0);
         const totalAmount = roomSubtotal + productsSubtotal;
 
+        // Obtener rate_type_id
         const getRateTypeId = () => {
             const rateTypeMap: Record<string, string> = {
                 'hour': 'HOUR',
@@ -628,21 +854,24 @@ const handleStartService = async (data: { paymentMethod: any; operationNumber: s
             return rateType.id;
         };
 
+        // ============================================================
+        // ✅ PREPARAR DATOS DEL BOOKING (CON QUANTITY)
+        // ============================================================
         const bookingData = {
             room_id: props.roomData?.id,
             customers_id: selectedClient.value.id,
             rate_type_id: getRateTypeId(),
             currency_id: selectedCurrency.value?.id,
-            quantity: timeAmount.value,
+            quantity: timeAmount.value,  // ✅ Envía quantity directamente
             rate_per_hour: getCurrentRoomPrice(),
             voucher_type: voucherType.value,
             
             payments: [
                 {
-                    payment_method_id: data.paymentMethod.id,
+                    payment_method_id: selectedPaymentMethod.value.id,
                     amount: totalAmount,
                     cash_register_id: userCashRegister.value.id,
-                    operation_number: data.paymentMethod.requires_reference ? data.operationNumber : null
+                    operation_number: selectedPaymentMethod.value.requires_reference ? operationNumber.value : null
                 }
             ],
             
@@ -655,10 +884,12 @@ const handleStartService = async (data: { paymentMethod: any; operationNumber: s
 
         console.log('📤 Enviando booking:', bookingData);
 
+        // Llamada al backend
         const response = await axios.post('/bookings', bookingData);
 
         console.log('✅ Respuesta del servidor:', response.data);
 
+        // Guardar booking ID
         currentBookingId.value = response.data.data?.booking?.id || null;
 
         toast.add({
@@ -668,8 +899,10 @@ const handleStartService = async (data: { paymentMethod: any; operationNumber: s
             life: 4000
         });
 
+        // Cerrar modal
         showStartDialog.value = false;
         
+        // Iniciar cronómetro visual
         totalSeconds.value = calculateTotalSeconds();
         remainingSeconds.value = totalSeconds.value;
         isTimerRunning.value = true;
@@ -687,6 +920,7 @@ const handleStartService = async (data: { paymentMethod: any; operationNumber: s
             }
         }, 1000);
 
+        // Actualizar estado de la habitación en la UI
         if (props.roomData) {
             props.roomData.status = 'occupied';
         }
@@ -741,7 +975,7 @@ const confirmFinishService = async () => {
     showFinishDialog.value = true;
 };
 
-const handleFinishService = async (data: { paymentMethod: any | null; operationNumber: string; notes: string }) => {
+const processFinishService = async () => {
     if (!currentBookingId.value) {
         toast.add({
             severity: 'error',
@@ -756,16 +990,17 @@ const handleFinishService = async (data: { paymentMethod: any | null; operationN
 
     try {
         const finishData: any = {
-            notes: data.notes || undefined,
+            notes: finishNotes.value || undefined,
         };
 
-        if (data.paymentMethod) {
+        // Si hay saldo pendiente y se seleccionó método de pago
+        if (selectedFinishPaymentMethod.value) {
             finishData.payments = [
                 {
-                    payment_method_id: data.paymentMethod.id,
-                    amount: 0,
+                    payment_method_id: selectedFinishPaymentMethod.value.id,
+                    amount: 0, // El backend calculará el monto
                     cash_register_id: userCashRegister.value.id,
-                    operation_number: data.paymentMethod.requires_reference ? data.operationNumber : null
+                    operation_number: selectedFinishPaymentMethod.value.requires_reference ? finishOperationNumber.value : null
                 }
             ];
         }
@@ -776,6 +1011,7 @@ const handleFinishService = async (data: { paymentMethod: any | null; operationN
 
         console.log('✅ Respuesta del servidor:', response.data);
 
+        // Detener cronómetro
         if (timerInterval.value) {
             clearInterval(timerInterval.value);
             timerInterval.value = null;
@@ -789,8 +1025,10 @@ const handleFinishService = async (data: { paymentMethod: any | null; operationN
             life: 4000
         });
 
+        // Cerrar modal
         showFinishDialog.value = false;
 
+        // Mostrar resumen si hay tiempo extra
         if (response.data.data?.time_summary?.extra_hours > 0) {
             toast.add({
                 severity: 'info',
@@ -800,6 +1038,7 @@ const handleFinishService = async (data: { paymentMethod: any | null; operationN
             });
         }
 
+        // Recargar página después de 2 segundos
         setTimeout(() => {
             window.location.reload();
         }, 2000);
@@ -844,8 +1083,16 @@ const loadNecessaryData = async () => {
         userCashRegister.value = cashRegisterRes.data.data;
         rateTypes.value = rateTypesRes.data.data || rateTypesRes.data;
 
+        // Seleccionar por defecto
         if (currencies.value.length > 0 && !selectedCurrency.value) {
             selectedCurrency.value = currencies.value[0];
+        }
+        
+        if (!selectedPaymentMethod.value) {
+            const cashMethod = paymentMethods.value.find(m => m.code === 'cash');
+            if (cashMethod) {
+                selectedPaymentMethod.value = cashMethod;
+            }
         }
 
     } catch (error: any) {
@@ -872,140 +1119,6 @@ const loadInitialData = async () => {
     }
 };
 
-// ==========================================
-// SINCRONIZACIÓN CON BACKEND
-// ==========================================
-const syncWithBackend = async () => {
-    if (!props.roomData?.id) return;
-    
-    try {
-        const response = await axios.get(`/rooms/${props.roomData.id}`);
-        const roomInfo = response.data.data;
-        
-        // Si hay booking activo, sincronizar datos
-        if (roomInfo.current_booking) {
-            const booking = roomInfo.current_booking;
-            
-            // Actualizar estado del cronómetro
-            if (booking.remaining_seconds !== undefined) {
-                remainingSeconds.value = booking.remaining_seconds;
-                isTimerRunning.value = true;
-                currentBookingId.value = booking.booking_id;
-                
-                // Recuperar datos del cliente
-                if (booking.guest_name && booking.guest_client_id) {
-                    selectedClient.value = {
-                        id: booking.guest_client_id,
-                        name: booking.guest_name,
-                        document_number: booking.guest_document
-                    };
-                }
-                
-                // Recuperar tarifa
-                const rateTypeMap: Record<string, 'hour' | 'day' | 'night'> = {
-                    'Por Hora': 'hour',
-                    'Por Día': 'day',
-                    'Por Noche': 'night'
-                };
-                selectedRate.value = rateTypeMap[booking.rate_type] || null;
-                
-                // Recuperar cantidad de tiempo
-                if (booking.total_hours) {
-                    if (selectedRate.value === 'hour') {
-                        timeAmount.value = booking.total_hours;
-                    } else if (selectedRate.value === 'day') {
-                        timeAmount.value = Math.floor(booking.total_hours / 24);
-                    } else if (selectedRate.value === 'night') {
-                        timeAmount.value = Math.floor(booking.total_hours / 8);
-                    }
-                }
-                
-                // Calcular total de segundos basado en el tiempo contratado
-                totalSeconds.value = booking.total_hours * 3600;
-                
-                // Recuperar tipo de comprobante
-                voucherType.value = booking.voucher_type || 'boleta';
-                
-                // Recuperar productos/consumos
-                if (booking.consumptions && booking.consumptions.length > 0) {
-                    products.value = booking.consumptions.map((c: any) => ({
-                        id: c.product_id,
-                        nombre: c.product_name,
-                        cantidad: c.quantity,
-                        precio_venta: c.unit_price,
-                        quantity: c.quantity,
-                        price: c.unit_price,
-                        status: c.status, // ✅ Agregar el status
-                        consumed_at: c.consumed_at,
-                        consumption_id: c.id // ✅ ID del consumo
-                    }));
-                }
-                
-                // Iniciar cronómetro local si no está corriendo
-                if (!timerInterval.value) {
-                    timerInterval.value = setInterval(() => {
-                        remainingSeconds.value--;
-                        
-                        if (remainingSeconds.value === 0) {
-                            toast.add({
-                                severity: 'warn',
-                                summary: '⚠️ Tiempo Contratado Agotado',
-                                detail: 'A partir de ahora se cobrará tiempo extra.',
-                                life: 8000
-                            });
-                        }
-                    }, 1000);
-                }
-            }
-            
-            // Actualizar estado de la habitación
-            if (props.roomData) {
-                props.roomData.status = roomInfo.status;
-            }
-        } else {
-            // No hay booking activo, detener cronómetro
-            if (timerInterval.value) {
-                clearInterval(timerInterval.value);
-                timerInterval.value = null;
-            }
-            isTimerRunning.value = false;
-            currentBookingId.value = null;
-        }
-    } catch (error: any) {
-        console.error('Error al sincronizar con backend:', error);
-    }
-};
-
-// Intervalo para sincronización periódica (cada 30 segundos)
-const syncInterval = ref<any>(null);
-
-// ==========================================
-// LIFECYCLE HOOKS
-// ==========================================
-onMounted(async () => {
-    await loadInitialData();
-    
-    // Sincronizar al cargar
-    await syncWithBackend();
-    
-    // Sincronización periódica cada 30 segundos
-    syncInterval.value = setInterval(() => {
-        syncWithBackend();
-    }, 30000);
-    
-    if (selectedRate.value && !isTimerRunning.value) {
-        remainingSeconds.value = calculateTotalSeconds();
-    }
-});
-
-onUnmounted(() => {
-    if (timerInterval.value) {
-        clearInterval(timerInterval.value);
-    }
-    if (syncInterval.value) {
-        clearInterval(syncInterval.value);
-    }
-});
 // ==========================================
 // WATCHERS
 // ==========================================

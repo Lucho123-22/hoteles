@@ -4,12 +4,6 @@
             <h3 class="text-lg font-bold text-surface-900 dark:text-surface-0 flex items-center gap-2">
                 <i class="pi pi-shopping-cart"></i>
                 Productos Adicionales
-                <Badge 
-                    v-if="isServiceActive" 
-                    value="Servicio Activo" 
-                    severity="success" 
-                    class="text-xs"
-                />
             </h3>
             <Button 
                 label="Buscar Productos" 
@@ -17,24 +11,8 @@
                 severity="contrast"
                 size="small"
                 @click="openDialog"
-                :disabled="disabled"
             />
         </div>
-
-        <!-- Mensaje informativo cuando hay servicio activo -->
-        <Message 
-            v-if="isServiceActive" 
-            severity="info" 
-            :closable="false"
-            class="mb-4"
-        >
-            <div class="flex items-center gap-2">
-                <i class="pi pi-info-circle"></i>
-                <span class="text-sm">
-                    Los productos agregados se registrarán inmediatamente como consumo adicional
-                </span>
-            </div>
-        </Message>
 
         <!-- Lista de productos agregados al carrito -->
         <DataTable 
@@ -50,10 +28,7 @@
                         <div>
                             <span class="font-medium block">{{ data.nombre }}</span>
                             <span class="text-xs text-surface-500 dark:text-surface-400">
-                                <span v-if="data.codigo">Código: {{ data.codigo }}</span>
-                                <span v-if="data.status === 'paid'" class="ml-2 text-green-600 font-semibold">
-                                    <i class="pi pi-check-circle"></i> Pagado
-                                </span>
+                                Código: {{ data.codigo }}
                             </span>
                         </div>
                     </div>
@@ -67,21 +42,20 @@
             <Column field="precio_venta" header="Precio Unit." style="width: 120px">
                 <template #body="{ data }">
                     <span class="font-semibold text-green-600 dark:text-green-400">
-                        {{ currencySymbol }} {{ parseFloat(data.precio_venta || data.price || data.unit_price || 0).toFixed(2) }}
+                        S/ {{ parseFloat(data.precio_venta).toFixed(2) }}
                     </span>
                 </template>
             </Column>
             <Column header="Subtotal" style="width: 120px">
                 <template #body="{ data }">
                     <span class="font-bold text-surface-900 dark:text-surface-0">
-                        {{ currencySymbol }} {{ calculateProductSubtotal(data) }}
+                        S/ {{ calculateProductSubtotal(data) }}
                     </span>
                 </template>
             </Column>
             <Column header="Acciones" style="width: 100px">
                 <template #body="{ data }">
-                    <!-- Solo mostrar acciones si NO está pagado -->
-                    <div v-if="data.status !== 'paid'" class="flex gap-1">
+                    <div class="flex gap-1">
                         <Button 
                             icon="pi pi-pencil" 
                             severity="info"
@@ -89,7 +63,6 @@
                             rounded
                             size="small"
                             @click="editProduct(data)"
-                            :disabled="disabled"
                             v-tooltip.top="'Editar cantidad'"
                         />
                         <Button 
@@ -99,13 +72,8 @@
                             rounded
                             size="small"
                             @click="removeProduct(data.id)"
-                            :disabled="disabled"
                             v-tooltip.top="'Eliminar'"
                         />
-                    </div>
-                    <!-- Mostrar estado pagado -->
-                    <div v-else class="text-center">
-                        <Tag value="Pagado" severity="success" class="text-xs" />
                     </div>
                 </template>
             </Column>
@@ -175,7 +143,7 @@
                         <Column field="precio_venta" header="Precio" style="width: 10rem">
                             <template #body="{ data }">
                                 <span class="font-bold text-green-600 dark:text-green-400">
-                                    {{ currencySymbol }} {{ parseFloat(data.precio_venta).toFixed(2) }}
+                                    S/ {{ parseFloat(data.precio_venta).toFixed(2) }}
                                 </span>
                             </template>
                         </Column>
@@ -218,24 +186,6 @@
             :header="`Agregar: ${selectedProduct?.nombre}`"
             :style="{ width: '600px' }"
         >
-            <!-- Alerta para servicio activo -->
-            <Message 
-                v-if="isServiceActive" 
-                severity="warn" 
-                :closable="false"
-                class="mb-4"
-            >
-                <div class="flex items-center gap-2">
-                    <i class="pi pi-bolt"></i>
-                    <div>
-                        <strong>Servicio en Curso</strong>
-                        <p class="text-sm mt-1">
-                            Este producto se agregará como consumo adicional y se registrará inmediatamente en el sistema. El stock se descontará al confirmar.
-                        </p>
-                    </div>
-                </div>
-            </Message>
-
             <div class="space-y-4" v-if="selectedProduct">
                 <!-- Información del Producto -->
                 <div class="p-4 bg-surface-100 dark:bg-surface-700 rounded-lg">
@@ -260,7 +210,7 @@
                     <div class="flex justify-between items-center pt-2 border-t border-surface-300 dark:border-surface-600">
                         <span class="text-sm text-surface-600 dark:text-surface-400">Precio por fracción:</span>
                         <span class="text-lg font-bold text-green-600 dark:text-green-400">
-                            {{ currencySymbol }} {{ parseFloat(selectedProduct.precio_venta).toFixed(2) }}
+                            S/ {{ parseFloat(selectedProduct.precio_venta).toFixed(2) }}
                         </span>
                     </div>
                 </div>
@@ -340,11 +290,11 @@
                             Subtotal:
                         </span>
                         <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                            {{ currencySymbol }} {{ calculateSubtotal() }}
+                            S/ {{ calculateSubtotal() }}
                         </span>
                     </div>
                     <p class="text-xs text-surface-500 dark:text-surface-400 mt-2">
-                        {{ form.totalFractions }} fracciones × {{ currencySymbol }} {{ parseFloat(selectedProduct.precio_venta).toFixed(2) }}
+                        {{ form.totalFractions }} fracciones × S/ {{ parseFloat(selectedProduct.precio_venta).toFixed(2) }}
                     </p>
                 </div>
             </div>
@@ -358,9 +308,9 @@
                     @click="closeQuantityDialog" 
                 />
                 <Button 
-                    :label="isServiceActive ? 'Registrar Consumo' : 'Agregar al Carrito'" 
-                    :severity="isServiceActive ? 'success' : 'contrast'"
-                    :icon="isServiceActive ? 'pi pi-check' : 'pi pi-shopping-cart'" 
+                    label="Agregar al Carrito" 
+                    severity="contrast"
+                    icon="pi pi-shopping-cart" 
                     @click="addProduct"
                     :disabled="!selectedProduct || form.totalFractions <= 0"
                 />
@@ -391,7 +341,7 @@
                             </p>
                         </div>
                         <span class="text-lg font-bold text-green-600 dark:text-green-400">
-                            {{ currencySymbol }} {{ parseFloat(editingProduct.precio_venta).toFixed(2) }}
+                            S/ {{ parseFloat(editingProduct.precio_venta).toFixed(2) }}
                         </span>
                     </div>
                 </div>
@@ -428,11 +378,11 @@
                     <div class="flex justify-between items-center text-sm pt-2">
                         <span>Subtotal:</span>
                         <span class="font-bold text-primary-600 dark:text-primary-400">
-                            {{ currencySymbol }} {{ calculateEditSubtotal() }}
+                            S/ {{ calculateEditSubtotal() }}
                         </span>
                     </div>
                     <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
-                        {{ editForm.totalFractions }} fracciones × {{ currencySymbol }} {{ parseFloat(editingProduct.precio_venta).toFixed(2) }}
+                        {{ editForm.totalFractions }} fracciones × S/ {{ parseFloat(editingProduct.precio_venta).toFixed(2) }}
                     </p>
                 </div>
             </div>
@@ -452,7 +402,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
@@ -467,48 +417,32 @@ import axios from 'axios';
 
 interface Product {
     id: string;
-    codigo?: string;
+    codigo: string;
     nombre: string;
-    product_name?: string;
-    descripcion?: string;
-    precio_compra?: string;
-    precio_venta?: string;
-    price?: string;
-    unit_price?: string;
-    unidad?: string;
-    fraction_units?: number;
-    fracciones_por_unidad?: number;
-    es_fraccionable?: boolean;
-    stock_actual?: number;
-    min_stock?: number;
-    max_stock?: number;
-    sub_sucursal?: string;
-    quantity?: number;
-    cantidad?: number;
-    status?: string; // ✅ Agregado para identificar productos pagados
-    consumed_at?: string;
-    consumption_id?: string;
+    descripcion: string;
+    precio_compra: string;
+    precio_venta: string;
+    unidad: string;
+    fraction_units: number;
+    fracciones_por_unidad: number;
+    es_fraccionable: boolean;
+    stock_actual: number;
+    min_stock: number;
+    max_stock: number;
+    sub_sucursal: string;
+    quantity?: number; // Total de FRACCIONES como entero
 }
 
 interface Props {
     modelValue?: Product[];
-    currencySymbol?: string;
-    disabled?: boolean;
-    bookingId?: string | null;
-    isServiceActive?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    modelValue: () => [],
-    currencySymbol: 'S/',
-    disabled: false,
-    bookingId: null,
-    isServiceActive: false
+    modelValue: () => []
 });
 
 const emit = defineEmits<{
     'update:modelValue': [products: Product[]];
-    'products-added': [products: Product[]];
 }>();
 
 const toast = useToast();
@@ -531,30 +465,25 @@ const editForm = ref({
     totalFractions: 0
 });
 
-// Watch para sincronizar con el prop
-watch(() => props.modelValue, (newValue) => {
-    products.value = newValue;
-}, { deep: true });
-
 // Calcular unidades completas y fracciones restantes
 const calculatedUnits = computed(() => {
     if (!selectedProduct.value || !form.value.totalFractions) return 0;
-    return Math.floor(form.value.totalFractions / (selectedProduct.value.fracciones_por_unidad || 1));
+    return Math.floor(form.value.totalFractions / selectedProduct.value.fracciones_por_unidad);
 });
 
 const remainingFractions = computed(() => {
     if (!selectedProduct.value || !form.value.totalFractions) return 0;
-    return form.value.totalFractions % (selectedProduct.value.fracciones_por_unidad || 1);
+    return form.value.totalFractions % selectedProduct.value.fracciones_por_unidad;
 });
 
 const editCalculatedUnits = computed(() => {
     if (!editingProduct.value || !editForm.value.totalFractions) return 0;
-    return Math.floor(editForm.value.totalFractions / (editingProduct.value.fracciones_por_unidad || 1));
+    return Math.floor(editForm.value.totalFractions / editingProduct.value.fracciones_por_unidad);
 });
 
 const editRemainingFractions = computed(() => {
     if (!editingProduct.value || !editForm.value.totalFractions) return 0;
-    return editForm.value.totalFractions % (editingProduct.value.fracciones_por_unidad || 1);
+    return editForm.value.totalFractions % editingProduct.value.fracciones_por_unidad;
 });
 
 const calculateUnits = () => {
@@ -565,44 +494,40 @@ const calculateEditUnits = () => {
     // Trigger computed properties
 };
 
+// ✅ CORREGIDO: Calcular subtotal directo - fracciones × precio_venta
 const calculateSubtotal = () => {
     if (!selectedProduct.value) return '0.00';
-    const price = parseFloat(selectedProduct.value.precio_venta || '0');
-    const subtotal = form.value.totalFractions * price;
+    const subtotal = form.value.totalFractions * parseFloat(selectedProduct.value.precio_venta);
     return subtotal.toFixed(2);
 };
 
 const calculateEditSubtotal = () => {
     if (!editingProduct.value) return '0.00';
-    const price = parseFloat(editingProduct.value.precio_venta || editingProduct.value.price || editingProduct.value.unit_price || '0');
-    const subtotal = editForm.value.totalFractions * price;
+    const subtotal = editForm.value.totalFractions * parseFloat(editingProduct.value.precio_venta);
     return subtotal.toFixed(2);
 };
 
+// ✅ CORREGIDO: Calcular subtotal de un producto en el carrito
 const calculateProductSubtotal = (product: Product) => {
-    const totalFractions = product.quantity || product.cantidad || 0;
-    const price = parseFloat(product.precio_venta || product.price || product.unit_price || '0');
-    const subtotal = totalFractions * price;
+    const totalFractions = product.quantity || 0;
+    const subtotal = totalFractions * parseFloat(product.precio_venta);
     return subtotal.toFixed(2);
 };
 
+// Formatear display de cantidad en la tabla
 const formatQuantityDisplay = (product: Product) => {
-    const quantity = product.quantity || product.cantidad || 0;
-    const esFraccionable = product.es_fraccionable || false;
-    const fraccionesPorUnidad = product.fracciones_por_unidad || product.fraction_units || 1;
-    
-    if (!esFraccionable) {
-        return `${quantity} unidades`;
+    if (!product.es_fraccionable || !product.quantity) {
+        return `${product.quantity || 0} unidades`;
     }
     
-    const totalFractions = Math.round(quantity);
-    const units = Math.floor(totalFractions / fraccionesPorUnidad);
-    const fractions = totalFractions % fraccionesPorUnidad;
+    const totalFractions = Math.round(product.quantity);
+    const units = Math.floor(totalFractions / product.fracciones_por_unidad);
+    const fractions = totalFractions % product.fracciones_por_unidad;
     
     if (units > 0 && fractions > 0) {
-        return `${units} ${product.unidad || 'und'} + ${fractions} frac.`;
+        return `${units} ${product.unidad} + ${fractions} frac.`;
     } else if (units > 0) {
-        return `${units} ${product.unidad || 'und'}`;
+        return `${units} ${product.unidad}`;
     } else {
         return `${fractions} fracciones`;
     }
@@ -672,69 +597,40 @@ const addProduct = () => {
     }
 
     const totalFractions = form.value.totalFractions;
-    
-    // Crear el producto a agregar
-    const productToAdd = {
-        ...selectedProduct.value,
-        quantity: totalFractions
-    };
 
-    // Si hay un servicio activo (booking), enviar inmediatamente al backend
-    if (props.isServiceActive && props.bookingId) {
-        emit('products-added', [productToAdd]);
+    const existingIndex = products.value.findIndex(p => p.id === selectedProduct.value!.id);
+
+    if (existingIndex !== -1) {
+        const newQuantity = products.value[existingIndex].quantity! + totalFractions;
+        products.value[existingIndex].quantity = newQuantity;
         
         toast.add({
             severity: 'info',
-            summary: 'Procesando...',
-            detail: 'Registrando consumo adicional',
-            life: 2000
+            summary: 'Actualizado',
+            detail: 'Se actualizó la cantidad del producto',
+            life: 3000
         });
     } else {
-        // Si no hay servicio activo, solo agregar al carrito local
-        const existingIndex = products.value.findIndex(
-            p => p.id === selectedProduct.value!.id && p.status !== 'paid'
-        );
-
-        if (existingIndex !== -1) {
-            const newQuantity = (products.value[existingIndex].quantity || 0) + totalFractions;
-            products.value[existingIndex].quantity = newQuantity;
-            
-            toast.add({
-                severity: 'info',
-                summary: 'Actualizado',
-                detail: 'Se actualizó la cantidad del producto',
-                life: 3000
-            });
-        } else {
-            products.value.push(productToAdd);
-            
-            toast.add({
-                severity: 'success',
-                summary: 'Agregado',
-                detail: `${selectedProduct.value.nombre} agregado al carrito`,
-                life: 3000
-            });
-        }
-
-        emit('update:modelValue', products.value);
+        products.value.push({
+            ...selectedProduct.value,
+            quantity: totalFractions
+        });
+        
+        toast.add({
+            severity: 'success',
+            summary: 'Agregado',
+            detail: `${selectedProduct.value.nombre} agregado al carrito`,
+            life: 3000
+        });
     }
 
+    emit('update:modelValue', products.value);
     closeQuantityDialog();
 };
 
 const editProduct = (product: Product) => {
-    if (product.status === 'paid') {
-        toast.add({
-            severity: 'warn',
-            summary: 'No Permitido',
-            detail: 'No se pueden editar productos ya pagados',
-            life: 3000
-        });
-        return;
-    }
-    
     editingProduct.value = product;
-    editForm.value.totalFractions = Math.round(product.quantity || product.cantidad || 0);
+    editForm.value.totalFractions = Math.round(product.quantity || 0);
     showEditDialog.value = true;
 };
 
@@ -750,8 +646,8 @@ const updateProduct = () => {
     }
     
     const totalFractions = editForm.value.totalFractions;
-    const index = products.value.findIndex(p => p.id === editingProduct.value!.id);
     
+    const index = products.value.findIndex(p => p.id === editingProduct.value!.id);
     if (index !== -1) {
         products.value[index].quantity = totalFractions;
         emit('update:modelValue', products.value);
@@ -768,18 +664,6 @@ const updateProduct = () => {
 };
 
 const removeProduct = (id: string) => {
-    const product = products.value.find(p => p.id === id);
-    
-    if (product?.status === 'paid') {
-        toast.add({
-            severity: 'warn',
-            summary: 'No Permitido',
-            detail: 'No se pueden eliminar productos ya pagados',
-            life: 3000
-        });
-        return;
-    }
-    
     products.value = products.value.filter(p => p.id !== id);
     emit('update:modelValue', products.value);
     

@@ -67,11 +67,12 @@ class RoomResource extends JsonResource
                 'check_out'       => $currentBooking->check_out?->toDateTimeString(),
                 'total_hours'     => $currentBooking->total_hours,
                 'rate_type'       => $currentBooking->rateType?->name,
-                
+                'rate_type_id'    => $currentBooking->rate_type_id,
                 'remaining_time'  => $remainingTime,
                 'remaining_seconds' => (int) $remainingSeconds,
                 'is_time_expired' => $isTimeExpired,
                 'estimated_checkout' => $estimatedCheckout,
+                'voucher_type'  => $currentBooking->voucher_type,
                 
                 'consumptions'    => $currentBooking->bookingConsumptions->map(function ($consumption) {
                     return [
