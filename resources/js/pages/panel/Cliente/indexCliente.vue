@@ -1,24 +1,27 @@
 <template>
     <Head title="Cliente" />
-    <AppLayout>
+    <AppLayouth>
         <div>
             <template v-if="isLoading">
                 <Espera />
             </template>
             <template v-else>
+                <indexMenuRecepcionista/>
                 <div class="card">
-
+                    <listCliente/>
                 </div>
             </template>
         </div>
-    </AppLayout>
+    </AppLayouth>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import AppLayout from '@/layout/AppLayout.vue';
+import AppLayouth from '@/layout/AppLayouth.vue';
 import { Head } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
+import indexMenuRecepcionista from '../MenuRecepcionista/indexMenuRecepcionista.vue';
+import listCliente from './Desarrollo/listCliente.vue';
 
 const isLoading = ref(true);
 

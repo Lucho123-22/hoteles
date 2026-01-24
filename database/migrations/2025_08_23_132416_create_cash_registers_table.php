@@ -5,19 +5,16 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function up() {
+    public function up(): void
+    {
         Schema::create('cash_registers', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('sub_branch_id'); // cada local tiene su caja
-            $table->string('name')->default('Caja principal');
-            $table->enum('status', ['abierta', 'cerrada', 'bloqueada'])->default('cerrada');
-            $table->integer('opened_by')->nullable();  // usuario que abrió la caja
-            $table->integer('closed_by')->nullable();  // usuario que la cerró
-            $table->decimal('opening_amount', 12, 2)->default(0);
-            $table->decimal('closing_amount', 12, 2)->nullable();
-            $table->timestamp('opened_at')->nullable();
-            $table->timestamp('closed_at')->nullable();
+            $table->uuid('sub_branch_id');
+
+            $table->string('name');
             $table->boolean('is_active')->default(true);
+
+            $table->uuid('current_session_id')->nullable();
 
             // Auditoría
             $table->unsignedBigInteger('created_by')->nullable();
@@ -29,15 +26,16 @@ return new class extends Migration {
 
             // Relaciones
             $table->foreign('sub_branch_id')
-                ->references('id')->on('sub_branches')
+                ->references('id')
+                ->on('sub_branches')
                 ->cascadeOnDelete();
 
-            $table->index(['sub_branch_id', 'status', 'deleted_at']);
-            $table->index(['opened_by', 'closed_by']);
+            $table->index(['sub_branch_id', 'is_active']);
         });
     }
 
-    public function down() {
+    public function down(): void
+    {
         Schema::dropIfExists('cash_registers');
     }
 };

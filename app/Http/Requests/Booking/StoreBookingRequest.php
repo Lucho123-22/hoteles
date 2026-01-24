@@ -11,31 +11,30 @@ class StoreBookingRequest extends FormRequest
         return true;
     }
 
-    public function rules(): array
-    {
+    public function rules(): array{
         return [
             // Datos básicos
             'room_id' => 'required|uuid|exists:rooms,id',
             'customers_id' => 'required|uuid|exists:customers,id',
             'rate_type_id' => 'required|uuid|exists:rate_types,id',
             'currency_id' => 'required|uuid|exists:currencies,id',
-
-            // Tiempo y tarifa - AHORA ACEPTA quantity O total_hours
+            
+            // Tiempo y tarifa
             'quantity' => 'required_without:total_hours|integer|min:1|max:365',
             'total_hours' => 'required_without:quantity|integer|min:1|max:8760',
             'rate_per_hour' => 'required|numeric|min:0',
             'rate_per_unit' => 'nullable|numeric|min:0',
-
+            
             // Comprobante
             'voucher_type' => 'required|in:ticket,boleta,factura',
-
-            // Pagos
+            
+            // Pagos - cash_register_id ahora es OPCIONAL
             'payments' => 'required|array|min:1',
             'payments.*.payment_method_id' => 'required|uuid|exists:payment_methods,id',
             'payments.*.amount' => 'required|numeric|min:0.01',
-            'payments.*.cash_register_id' => 'required|uuid|exists:cash_registers,id',
+            'payments.*.cash_register_id' => 'nullable|uuid|exists:cash_registers,id', // ← CAMBIO AQUÍ
             'payments.*.operation_number' => 'nullable|string|max:100',
-
+            
             // Productos opcionales
             'consumptions' => 'nullable|array',
             'consumptions.*.product_id' => 'required|uuid|exists:products,id',

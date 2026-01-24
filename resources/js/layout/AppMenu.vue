@@ -76,14 +76,14 @@ const model = computed(() => [
     {
         label: 'Reportes',
         items: [
-            ('view reportes ingresos') && { label: 'Ingresos de Habitaciones', icon: 'pi pi-fw pi-home', to: '/panel/reportes/ingresos-habitaciones' },
-            ('view report de ingreso producto') && { label: 'Ingreso de Productos', icon: 'pi pi-fw pi-shopping-cart', to: '/panel/reportes/ingreso-productos' },
-            { label: 'Ingreso Bruto', icon: 'pi pi-fw pi-chart-line', to: '/panel/reportes/ingreso-bruto' },
-            ('view egreso reporte') && { label: 'Egresos', icon: 'pi pi-fw pi-money-bill', to: '/panel/reportes/egresos' },
-            ('view ingreso neto reporte') && { label: 'Ingreso Neto', icon: 'pi pi-fw pi-chart-bar', to: '/panel/reportes/ingreso-neto' },
-            ('view numero de clientes reporte') && { label: 'Número de Clientes', icon: 'pi pi-fw pi-users', to: '/panel/reportes/numero-clientes' },
-            ('view producto mas vendidos reporte') && { label: 'Productos Más Vendidos', icon: 'pi pi-fw pi-star', to: '/panel/reportes/productos-mas-vendidos' },
-            ('view proudcto menos vendidos reporte') && { label: 'Productos Menos Vendidos', icon: 'pi pi-fw pi-chart-pie', to: '/panel/reportes/productos-menos-vendidos' },
+            hasPermission('view reportes ingresos de habitacion') && { label: 'Ingresos de Habitaciones', icon: 'pi pi-fw pi-home', to: '/panel/reportes/ingresos-habitaciones' },
+            hasPermission('view reportes ingresos de productos') && { label: 'Ingreso de Productos', icon: 'pi pi-fw pi-shopping-cart', to: '/panel/reportes/ingreso-productos' },
+            hasPermission('view reportes ingresos brutos') && { label: 'Ingreso Bruto', icon: 'pi pi-fw pi-chart-line', to: '/panel/reportes/ingreso-bruto' },
+            hasPermission('view reportes de egresos') && { label: 'Egresos', icon: 'pi pi-fw pi-money-bill', to: '/panel/reportes/egresos' },
+            hasPermission('view reportes ingresos brutos') && { label: 'Ingreso Neto', icon: 'pi pi-fw pi-chart-bar', to: '/panel/reportes/ingreso-neto' },
+            hasPermission('view reportes de numero de clientes') && { label: 'Número de Clientes', icon: 'pi pi-fw pi-users', to: '/panel/reportes/numero-clientes' },
+            hasPermission('view reportes productos mas vendidos') && { label: 'Productos Más Vendidos', icon: 'pi pi-fw pi-star', to: '/panel/reportes/productos-mas-vendidos' },
+            hasPermission('view reportes productos menos vendidos') && { label: 'Productos Menos Vendidos', icon: 'pi pi-fw pi-chart-pie', to: '/panel/reportes/productos-menos-vendidos' },
         ].filter(Boolean),
     },
     {

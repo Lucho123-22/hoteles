@@ -26,6 +26,19 @@ class BookingController extends Controller{
         try {
             DB::beginTransaction();
             $validated = $request->validated();
+            
+            // ============================================================
+            // OBTENER CAJA ACTIVA DEL USUARIO AUTENTICADO
+            // ============================================================
+            $userCashRegister = Auth::user()->getActiveCashRegister();
+            
+            if (!$userCashRegister) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes una caja registradora abierta. Por favor, abre una caja primero.'
+                ], 422);
+            }
+            
             $room = Room::findOrFail($validated['room_id']);
             
             if ($room->status !== Room::STATUS_AVAILABLE) {
@@ -45,32 +58,19 @@ class BookingController extends Controller{
             $rateType = RateType::findOrFail($validated['rate_type_id']);
             $checkIn = now();
             
-            // ============================================================
-            // CALCULAR QUANTITY Y TOTAL_HOURS
-            // ============================================================
             if (isset($validated['quantity'])) {
-                // Si viene quantity, úsalo directamente
                 $quantity = $validated['quantity'];
                 $totalHours = $quantity * $rateType->duration_hours;
             } else {
-                // Si viene total_hours (legacy), calcula quantity
                 $totalHours = $validated['total_hours'];
                 $quantity = ceil($totalHours / $rateType->duration_hours);
             }
             
             $checkOut = $checkIn->copy()->addHours($totalHours);
-            
-            // ============================================================
-            // CÁLCULO: room_subtotal = precio × quantity
-            // ============================================================
             $roomSubtotal = $validated['rate_per_hour'] * $quantity;
-            
             $productsSubtotal = 0;
             $bookingCode = $this->generateBookingCode();
             
-            // ============================================================
-            // CREAR BOOKING
-            // ============================================================
             $booking = Booking::create([
                 'id' => Str::uuid(),
                 'booking_code' => $bookingCode,
@@ -97,9 +97,6 @@ class BookingController extends Controller{
                 'created_by' => Auth::id(),
             ]);
             
-            // ============================================================
-            // AGREGAR PRODUCTOS/CONSUMOS
-            // ============================================================
             if (isset($validated['consumptions']) && count($validated['consumptions']) > 0) {
                 foreach ($validated['consumptions'] as $consumption) {
                     $totalPrice = $consumption['quantity'] * $consumption['unit_price'];
@@ -118,7 +115,6 @@ class BookingController extends Controller{
                     $productsSubtotal += $totalPrice;
                 }
                 
-                // Actualizar totales con productos
                 $booking->products_subtotal = $productsSubtotal;
                 $booking->subtotal = $roomSubtotal + $productsSubtotal;
                 $booking->total_amount = $booking->subtotal;
@@ -126,15 +122,23 @@ class BookingController extends Controller{
             }
             
             // ============================================================
-            // REGISTRAR PAGOS
+            // REGISTRAR PAGOS CON LA CAJA DEL USUARIO
             // ============================================================
             $totalPaid = 0;
             foreach ($validated['payments'] as $paymentData) {
-                if (isset($paymentData['cash_register_id'])) {
-                    $cashRegister = CashRegister::find($paymentData['cash_register_id']);
-                    if (!$cashRegister || !$cashRegister->isOpen()) {
-                        throw new \Exception('La caja especificada no está abierta');
-                    }
+                // Usar la caja activa del usuario
+                $cashRegisterId = $paymentData['cash_register_id'] ?? $userCashRegister->id;
+                
+                // Verificar que la caja esté realmente abierta
+                $cashRegister = CashRegister::with('currentSession')->find($cashRegisterId);
+                
+                if (!$cashRegister || !$cashRegister->isOpen()) {
+                    throw new \Exception('La caja especificada no está abierta');
+                }
+                
+                // Verificar que la sesión sea del usuario actual
+                if ($cashRegister->currentSession->opened_by !== Auth::id()) {
+                    throw new \Exception('Solo puedes registrar pagos en tu propia sesión de caja');
                 }
                 
                 $paymentMethod = PaymentMethod::find($paymentData['payment_method_id']);
@@ -151,7 +155,7 @@ class BookingController extends Controller{
                     'amount_base_currency' => $paymentData['amount'],
                     'payment_method' => $paymentMethod->code ?? 'cash',
                     'payment_method_id' => $paymentData['payment_method_id'],
-                    'cash_register_id' => $paymentData['cash_register_id'] ?? null,
+                    'cash_register_id' => $cashRegisterId,
                     'operation_number' => $paymentData['operation_number'] ?? null,
                     'payment_date' => now(),
                     'status' => 'completed',
@@ -162,11 +166,9 @@ class BookingController extends Controller{
                 $totalPaid += $paymentData['amount'];
             }
             
-            // Actualizar monto pagado
             $booking->paid_amount = $totalPaid;
             $booking->save();
             
-            // Hacer check-in
             $booking->checkIn(Auth::id());
             
             DB::commit();
@@ -185,6 +187,11 @@ class BookingController extends Controller{
                     ]),
                     'check_in' => $checkIn->toDateTimeString(),
                     'check_out_scheduled' => $checkOut->toDateTimeString(),
+                    'cash_register_used' => [
+                        'id' => $userCashRegister->id,
+                        'name' => $userCashRegister->name,
+                        'session_id' => $userCashRegister->current_session_id
+                    ],
                     'breakdown' => [
                         'rate_per_hour' => $booking->rate_per_hour,
                         'quantity' => $quantity,
@@ -206,7 +213,9 @@ class BookingController extends Controller{
             
             Log::error('Error al crear booking:', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'sub_branch_id' => Auth::user()->sub_branch_id ?? null
             ]);
             
             return response()->json([

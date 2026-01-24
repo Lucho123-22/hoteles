@@ -7,6 +7,7 @@
         <Espera />
       </template>
       <template v-else>
+        <indexMenuRecepcionista/>
         <div class="card">
           <listRommFloor :roomData="roomData" />
         </div>
@@ -21,7 +22,7 @@ import AppLayouth from '@/layout/AppLayouth.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
 import listRommFloor from './Desarrollo/listRommFloor.vue';
-
+import indexMenuRecepcionista from '../MenuRecepcionista/indexMenuRecepcionista.vue';
 const page = usePage();
 
 const roomData = computed(() => page.props.data?.data || page.props.data);

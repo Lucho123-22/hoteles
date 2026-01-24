@@ -1,13 +1,15 @@
 <template>
+
   <Head title="Habitaciones" />
   <AppLayouth>
     <div>
       <template v-if="isLoading">
-        <Espera/>
+        <Espera />
       </template>
       <template v-else>
+          <indexMenuRecepcionista />
         <div class="card">
-            <listGestion/>
+          <listGestion />
         </div>
       </template>
     </div>
@@ -20,6 +22,7 @@ import AppLayouth from '@/layout/AppLayouth.vue';
 import { Head } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
 import listGestion from './Desarrollo/listGestion.vue';
+import indexMenuRecepcionista from '../MenuRecepcionista/indexMenuRecepcionista.vue';
 const isLoading = ref(true);
 
 onMounted(() => {

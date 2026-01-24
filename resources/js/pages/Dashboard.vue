@@ -3,7 +3,6 @@ import AppLayout from '@/layout/AppLayout.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import Password from './settings/Password.vue';
 import Message from 'primevue/message';
-import Button from 'primevue/button';
 
 const page = usePage();
 const mustReset = page.props.mustReset;

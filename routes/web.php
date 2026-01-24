@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\CashRegisterClosingController;
+use App\Http\Controllers\Api\CashRegisterSessionController;
 use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\ConsultasDni;
@@ -34,6 +36,8 @@ use App\Http\Controllers\Panel\SystemSettingController;
 use App\Http\Controllers\Web\Branch\BranchWeb;
 use App\Http\Controllers\Web\Cash\CashWeb;
 use App\Http\Controllers\Web\Cash\cashWebHabitaciones;
+use App\Http\Controllers\Web\Cash\Cloasebox;
+use App\Http\Controllers\Web\CashSession\CashSession;
 use App\Http\Controllers\Web\SubBranch\SubBranchWeb;
 use App\Http\Controllers\Web\Categoria\CategoriaWeb;
 use App\Http\Controllers\Web\Cliente\ClienteWeb;
@@ -98,7 +102,7 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::get('/aperturar', [cashWebHabitaciones::class, 'view'])->name('aperturar.view');
         Route::get('/habitaciones/online', [habitacionesGestion::class, 'view'])->name('online.view');
         Route::get('/cuarto/{id}', [RoomFloorWeb::class, 'view'])->name('cuarto.view');
-        Route::get('/cuarto/{id}/ocupado', [RoomFloorWeb::class, 'viewdetails'])->name('viewdetails.view');
+        Route::get('/caja/cerrar', [Cloasebox::class, 'view'])->name('cloasebox.view');
 
         # 🔹 Kardex (por producto, general y valorizado)
         Route::get('/kardex', [kardexWeb::class, 'view'])->name('kardex.view');
@@ -117,9 +121,6 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::get('/usuario', [UsuarioWebController::class,'index'])->name('usuario.index');
         Route::get('/roles', [UsuarioWebController::class, 'roles'])->name('roles.index');
 
-        # 🔹 Clientes
-        Route::get('/clientes', [ClienteWeb::class, 'view'])->name('clientes.index');
-
         # 🔹 Pisos, habitaciones, tipos y usos
         Route::get('/sub-branches/{subBranch}/floors', [FloorWeb::class, 'view'])->name('habitaciones.index');
         Route::get('/floors/{floor}/rooms', [RoomWeb::class, 'view'])->name('rooms.index');
@@ -132,6 +133,10 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         # 🔹 Horarios y configuración del sistema
         Route::get('/horarios', [HorarioWeb::class, 'view'])->name('horarios.index');
         Route::get('/configuracion', [SystemSettingWeb::class, 'view'])->name('configuracion.index');
+
+        Route::get('/cajas/usuarios/{id}', [CashSession::class, 'view'])->name('cajas.usuarios');
+        Route::get('/huespedes', [ClienteWeb::class, 'view'])->name('huespedes.view');
+
     });
 
     Route::prefix('reports')->group(function () {
@@ -177,6 +182,15 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::get('/analisis-rendimiento', [ReportController::class, 'analisisRendimientoProductos']);
         Route::get('/bajo-rendimiento', [ReportController::class, 'productosBajoRendimiento']);
 
+    });
+    
+    Route::prefix('cash-register-sessions')->group(function () {
+        Route::post('/close', [CashRegisterClosingController::class, 'close']);
+    });
+
+    Route::prefix('cash-registers')->group(function () {
+        Route::get('/{cashRegisterId}/sessions',[CashRegisterSessionController::class, 'byCashRegister']
+    );
     });
 
     Route::prefix('cuarto')->group(function () {
@@ -250,13 +264,14 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
 
     # CUSTOMER => BACKEND
     Route::prefix('customer')->group(function () {
+        Route::get('/', [CustomerController::class, 'index'])->name('customer.index');
         Route::post('/', [CustomerController::class, 'store'])->name('customer.store');
     });
 
     # CASH => BACKEND
     Route::prefix('cash')->group(function () {
         Route::get('/', [CashRegisterController::class, 'index'])->name('cash.cash-registers.index');
-        Route::post('/multiple', [CashRegisterController::class, 'createMultiple'])->name('cash.cash-registers.multiple');
+        Route::post('/multiple', [CashRegisterController::class, 'storeMultiple'])->name('cash.cash-registers.multiple');
         Route::get('/{id}', [CashRegisterController::class, 'show'])->name('cash.cash-registers.show');
         Route::post('/{id}/open', [CashRegisterController::class, 'open'])->name('cash.cash-registers.open');
     });

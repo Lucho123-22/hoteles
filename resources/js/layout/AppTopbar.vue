@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { useLayout } from '@/layout/composables/layout';
 import AppConfigurator from './AppConfigurator.vue';
 import { router } from '@inertiajs/vue3';
+
 const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
 
 const logout = () => {
@@ -60,7 +61,7 @@ const goToProfile = () => {
             </div>
 
             <button
-                class="layout-topbar-menu-button layout-topbar-action"
+                class="layout-topbar-menu-button layout-topbar-action" 
                 v-styleclass="{ selector: '@next', enterFromClass: 'hidden', enterActiveClass: 'animate-scalein', leaveToClass: 'hidden', leaveActiveClass: 'animate-fadeout', hideOnOutsideClick: true }"
             >
                 <i class="pi pi-ellipsis-v"></i>
@@ -68,6 +69,11 @@ const goToProfile = () => {
 
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
+                    <button type="button" class="layout-topbar-action">
+                        <i class="pi pi-bell"></i>
+                        <span>Notificaciones</span>
+                        <span class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">2</span>
+                    </button>
                     <button type="button" class="layout-topbar-action" @click="goToProfile">
                         <i class="pi pi-user"></i>
                         <span>Profile</span>

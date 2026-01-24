@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, nextTick } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
@@ -20,7 +20,18 @@ const emit = defineEmits(['update:visible', 'updated']);
 const serverErrors = ref({});
 const submitted = ref(false);
 const toast = useToast();
-const user = ref({});
+const user = ref({
+    dni: '',
+    name: '',
+    apellidos: '',
+    email: '',
+    username: '',
+    status: false,
+    role_id: null,
+    branch_id: null,
+    sub_branch_id: null,
+    nacimiento: null
+});
 const password = ref('');
 const loading = ref(false);
 const originalEmail = ref('');
@@ -34,41 +45,61 @@ const dialogVisible = ref(props.visible);
 watch(() => props.visible, (val) => dialogVisible.value = val);
 watch(dialogVisible, (val) => emit('update:visible', val));
 
-watch(() => props.visible, (newVal) => {
+watch(() => props.visible, async (newVal) => {
     if (newVal && props.UsuarioId) {
+        await nextTick();
         fetchUser();
+    } else if (!newVal) {
+        // Reset form when dialog closes
+        resetForm();
     }
 });
+
+const resetForm = () => {
+    user.value = {
+        dni: '',
+        name: '',
+        apellidos: '',
+        email: '',
+        username: '',
+        status: false,
+        role_id: null,
+        branch_id: null,
+        sub_branch_id: null,
+        nacimiento: null
+    };
+    password.value = '';
+    submitted.value = false;
+    serverErrors.value = {};
+    subBranches.value = [];
+};
 
 const fetchUser = async () => {
     loading.value = true;
     try {
         const response = await axios.get(`/usuarios/${props.UsuarioId}`);
-        user.value = response.data.user;
-        originalEmail.value = response.data.user.email;
-        originalUsername.value = response.data.user.username;
-        user.value.status = response.data.user.status === true ||
-            response.data.user.status === 1 ||
-            response.data.user.status === 'activo' ? true : false;
+        const userData = response.data.user;
         
-        // Ensure role_id is properly converted to number
-        if (user.value.role_id) {
-            user.value.role_id = Number(user.value.role_id);
-        }
+        // Asignar valores de forma segura
+        user.value = {
+            dni: userData.dni || '',
+            name: userData.name || '',
+            apellidos: userData.apellidos || '',
+            email: userData.email || '',
+            username: userData.username || '',
+            status: userData.status === true || userData.status === 1 || userData.status === 'activo',
+            role_id: userData.role_id ? Number(userData.role_id) : null,
+            branch_id: userData.branch_id || null,
+            sub_branch_id: userData.sub_branch_id || null,
+            nacimiento: null
+        };
         
-        // Handle branch and sub-branch logic
-        if (user.value.sub_branch_id && !user.value.branch_id) {
-            // If we have sub_branch_id but no branch_id, we need to find the branch_id
-            await obtenerBranchIdDeSubBranch(user.value.sub_branch_id);
-        } else if (user.value.branch_id) {
-            // If we have branch_id, load sub-branches
-            await cargarSubBranches(user.value.branch_id);
-        }
+        originalEmail.value = userData.email;
+        originalUsername.value = userData.username;
         
         // Convert birth date string to Date object if needed
-        if (user.value.nacimiento && typeof user.value.nacimiento === 'string') {
-            // Handle different date formats (dd/mm/yyyy or dd-mm-yyyy)
-            const fechaStr = user.value.nacimiento.replace(/-/g, '/');
+        if (userData.nacimiento && typeof userData.nacimiento === 'string') {
+            const fechaStr = userData.nacimiento.replace(/-/g, '/');
             const fechaParts = fechaStr.split('/');
             if (fechaParts.length === 3) {
                 const dia = parseInt(fechaParts[0]);
@@ -76,6 +107,13 @@ const fetchUser = async () => {
                 const año = parseInt(fechaParts[2]);
                 user.value.nacimiento = new Date(año, mes, dia);
             }
+        }
+        
+        // Handle branch and sub-branch logic
+        if (user.value.sub_branch_id && !user.value.branch_id) {
+            await obtenerBranchIdDeSubBranch(user.value.sub_branch_id);
+        } else if (user.value.branch_id) {
+            await cargarSubBranches(user.value.branch_id);
         }
         
         password.value = '';
@@ -88,7 +126,6 @@ const fetchUser = async () => {
 };
 
 const onBranchChange = () => {
-    // Reset sub-branch when branch changes
     user.value.sub_branch_id = null;
     subBranches.value = [];
     
@@ -98,6 +135,11 @@ const onBranchChange = () => {
 };
 
 const cargarSubBranches = async (branchId) => {
+    if (!branchId) {
+        subBranches.value = [];
+        return;
+    }
+    
     try {
         const response = await axios.get(`/sub-branches/${branchId}`);
         if (response.data.success && response.data.data) {
@@ -119,27 +161,22 @@ const cargarSubBranches = async (branchId) => {
 
 const obtenerBranchIdDeSubBranch = async (subBranchId) => {
     try {
-        // First, we need to find which branch this sub-branch belongs to
-        // We'll iterate through all branches to find the correct one
         for (const branch of branches.value) {
             try {
                 const response = await axios.get(`/sub-branches/${branch.id}`);
                 if (response.data.success && response.data.data) {
                     const subBranch = response.data.data.find(sb => sb.id === subBranchId);
                     if (subBranch) {
-                        // Found the branch that contains this sub-branch
                         user.value.branch_id = branch.id;
                         subBranches.value = response.data.data;
                         return;
                     }
                 }
             } catch (error) {
-                // Continue with next branch if this one fails
                 continue;
             }
         }
         
-        // If we couldn't find the branch, show a warning
         toast.add({ 
             severity: 'warn', 
             summary: 'Advertencia', 
@@ -162,24 +199,23 @@ const updateUser = async () => {
     serverErrors.value = {};
 
     try {
-        const statusValue = user.value.status === true;
         const userData = {
             dni: user.value.dni,
             name: user.value.name,
             apellidos: user.value.apellidos,
             email: user.value.email,
             username: user.value.username,
-            status: statusValue,
+            status: user.value.status === true,
             role_id: user.value.role_id,
             branch_id: user.value.branch_id,
             sub_branch_id: user.value.sub_branch_id,
         };
 
         // Convert Date to string format for backend
-        if (userData.nacimiento instanceof Date) {
-            const dia = userData.nacimiento.getDate().toString().padStart(2, '0');
-            const mes = (userData.nacimiento.getMonth() + 1).toString().padStart(2, '0');
-            const año = userData.nacimiento.getFullYear();
+        if (user.value.nacimiento instanceof Date) {
+            const dia = user.value.nacimiento.getDate().toString().padStart(2, '0');
+            const mes = (user.value.nacimiento.getMonth() + 1).toString().padStart(2, '0');
+            const año = user.value.nacimiento.getFullYear();
             userData.nacimiento = `${dia}/${mes}/${año}`;
         } else if (user.value.nacimiento) {
             userData.nacimiento = user.value.nacimiento;
@@ -222,7 +258,7 @@ const updateUser = async () => {
 };
 
 const buscarPorDni = async () => {
-    if (user.value.dni.length !== 8) {
+    if (!user.value.dni || user.value.dni.length !== 8) {
         toast.add({
             severity: 'warn',
             summary: 'Advertencia',
@@ -245,7 +281,6 @@ const buscarPorDni = async () => {
             user.value.name = nombres
             user.value.apellidos = `${apePat} ${apeMat}`
             
-            // Convert string to Date object for DatePicker
             if (nacimiento) {
                 const fechaParts = nacimiento.split('/');
                 if (fechaParts.length === 3) {
@@ -292,7 +327,6 @@ const generarUsername = (nombres, apePat, apeMat, nacimiento) => {
     const apellido = normalizar(apePat).replace(/\s+/g, '');
     const segundoApellido = normalizar(apeMat).replace(/\s+/g, '').slice(0, 2) || '';
     
-    // Handle both string and Date formats for birth date
     let dia = '00';
     if (typeof nacimiento === 'string' && nacimiento.includes('/')) {
         dia = nacimiento.split('/')[0]?.padStart(2, '0') || '00';
@@ -304,24 +338,17 @@ const generarUsername = (nombres, apePat, apeMat, nacimiento) => {
 };
 
 onMounted(() => {
-    // Load roles
     axios.get('/rol')
         .then(response => {
-            roles.value = response.data.data;
-            if (user.value && user.value.role_id) {
-                user.value.role_id = Number(user.value.role_id);
-            }
+            roles.value = response.data.data || [];
         })
         .catch(() => {
             toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los roles', life: 3000 });
         });
     
-    // Load branches
     axios.get('/branches')
         .then(response => {
-            if (response.data.data) {
-                branches.value = response.data.data;
-            }
+            branches.value = response.data.data || [];
         })
         .catch(error => {
             console.error('Error al cargar sucursales:', error);
@@ -338,7 +365,7 @@ onMounted(() => {
 <template>
     <Dialog v-model:visible="dialogVisible" header="Editar Usuario" modal :closable="true" :closeOnEscape="true"
         :style="{ width: '600px' }">
-        <div class="flex flex-col gap-6">
+        <div v-if="user" class="flex flex-col gap-6">
             <div class="grid grid-cols-12 gap-4">
                 <div class="col-span-9">
                     <label for="dni" class="block font-bold mb-3">DNI <span class="text-red-500">*</span></label>

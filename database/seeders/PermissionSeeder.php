@@ -11,8 +11,13 @@ class PermissionSeeder extends Seeder{
         #=============================
         #Reportes
         #=============================
-        Permission::create(['name' => 'view reportes ingresos']);
-        Permission::create(['name' => 'view report de ingreso producto']);
+        Permission::create(['name' => 'view reportes ingresos de habitacion']);
+        Permission::create(['name' => 'view reportes ingresos de productos']);
+        Permission::create(['name' => 'view reportes ingresos brutos']);
+        Permission::create(['name' => 'view reportes de egresos']);
+        Permission::create(['name' => 'view reportes de numero de clientes']);
+        Permission::create(['name' => 'view reportes productos mas vendidos']);
+        Permission::create(['name' => 'view reportes productos menos vendidos']);
 
         #=============================
         #Pagos Personal

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Payment\PaymentShowResource;
 use App\Models\CashRegister;
+use App\Models\CashRegisterSession;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use Carbon\Carbon;
@@ -15,20 +16,37 @@ use Illuminate\Support\Facades\Auth;
 class PaymentController extends Controller{
     public function getUserCashRegister(){
         $user = Auth::user();
-        $cashRegister = CashRegister::with(['subBranch', 'openedByUser'])
+        $session = CashRegisterSession::with([
+                'cashRegister.subBranch'
+            ])
             ->where('opened_by', $user->id)
             ->where('status', 'abierta')
-            ->where('is_active', true)
+            ->whereNull('closed_at')
             ->first();
-        if (!$cashRegister) {
+
+        if (!$session) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes una caja abierta'
             ], 404);
         }
+
         return response()->json([
             'success' => true,
-            'data' => $cashRegister
+            'data' => [
+                'session_id' => $session->id,
+                'opened_at'  => $session->opened_at->format('d/m/Y h:i:s A'),
+                'opening_amount' => $session->opening_amount,
+                'cash_register' => [
+                    'id'        => $session->cashRegister->id,
+                    'name'      => $session->cashRegister->name,
+                    'is_active' => $session->cashRegister->is_active,
+                    'sub_branch'=> [
+                        'id'   => $session->cashRegister->subBranch->id,
+                        'name' => $session->cashRegister->subBranch->name,
+                    ]
+                ]
+            ]
         ]);
     }
     public function getPaymentMethods(){

@@ -2,107 +2,100 @@
 
 namespace App\Http\Controllers\Panel;
 
+use App\Http\Requests\Cash\StoreCashRegisterRequest;
 use App\Http\Resources\CashRegister\CashRegisterResource;
 use App\Models\CashRegister;
+use App\Models\CashRegisterSession;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 class CashRegisterController extends Controller{
     public function index(Request $request){
         try {
             Gate::authorize('viewAny', CashRegister::class);
             $user = Auth::user();
-            $query = CashRegister::with(['subBranch', 'openedByUser', 'closedByUser'])
-                ->where('sub_branch_id', $user->sub_branch_id);
-            if ($request->has('status') && in_array($request->status, ['abierta', 'cerrada', 'bloqueada'])) {
-                $query->where('status', $request->status);
-            }
-            if ($request->has('is_active')) {
-                $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
-            }
-            if ($request->has('search')) {
-                $query->where('name', 'like', '%' . $request->search . '%');
-            }
-            $sortField = $request->get('sort_field', 'name');
-            $sortOrder = $request->get('sort_order', 'asc');
-            $allowedSortFields = ['name', 'status', 'created_at', 'opened_at'];
-            if (in_array($sortField, $allowedSortFields)) {
-                $query->orderBy($sortField, $sortOrder);
-            }
-            $perPage = $request->get('per_page', 15);
-            $cashRegisters = $query->paginate($perPage);
+            $cashRegisters = CashRegister::with([
+                    'subBranch',
+                    'currentSession.openedBy',  // Cambiar de openedByUser a openedBy
+                    'sessions.openedBy',        // Cambiar de openedByUser a openedBy
+                    'sessions.closedBy',        // Cambiar de closedByUser a closedBy
+                ])
+                ->where('sub_branch_id', $user->sub_branch_id)
+                ->orderBy('created_at', 'asc')
+                ->get();
             return response()->json([
                 'success' => true,
-                'data' => CashRegisterResource::collection($cashRegisters),
-                'meta' => [
-                    'current_page' => $cashRegisters->currentPage(),
-                    'per_page' => $cashRegisters->perPage(),
-                    'total' => $cashRegisters->total(),
-                    'last_page' => $cashRegisters->lastPage(),
-                ]
+                'message' => 'Listado de cajas obtenido correctamente',
+                'data'    => CashRegisterResource::collection($cashRegisters),
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error listing cash registers', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
-        } catch (AuthorizationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes permisos para ver las cajas registradoras'
-            ], 403);
-        } catch (Exception $e) {
-            Log::error('Error listing cash registers: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener la lista de cajas registradoras'
             ], 500);
         }
     }
-    public function store(Request $request){
+    public function storeMultiple(StoreCashRegisterRequest $request)
+    {
+        Gate::authorize('create', CashRegister::class);
+
+        $user = Auth::user();
+        $subBranchId = $user->sub_branch_id;
+        $quantity = $request->quantity;
         try {
-            Gate::authorize('create', CashRegister::class);
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string'
-            ]);
-            $user = Auth::user();
-            $cashRegister = CashRegister::create([
-                'name' => $request->name,
-                'description' => $request->description,
-                'sub_branch_id' => $user->sub_branch_id,
-                'status' => 'cerrada',
-                'is_active' => true,
-                'initial_balance' => 0,
-                'current_balance' => 0
-            ]);
+            DB::beginTransaction();
+            $lastNumber = CashRegister::where('sub_branch_id', $subBranchId)
+                ->selectRaw("
+                    MAX(
+                        CAST(
+                            split_part(name, ' ', 2) AS INTEGER
+                        )
+                    ) as max_number
+                ")
+                ->value('max_number');
+            $startNumber = ($lastNumber ?? 0) + 1;
+            $created = [];
+            for ($i = 0; $i < $quantity; $i++) {
+                $cashRegister = CashRegister::create([
+                    'sub_branch_id' => $subBranchId,
+                    'name'          => 'Caja ' . ($startNumber + $i),
+                    'status'        => 'cerrada',
+                    'is_active'     => true,
+                    'created_by'    => $user->id,
+                ]);
+                $created[] = $cashRegister;
+            }
+            DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => 'Caja registradora creada exitosamente',
-                'data' => new CashRegisterResource($cashRegister)
-            ], 201);
-        } catch (AuthorizationException $e) {
+                'message' => 'Cajas creadas exitosamente',
+                'data'    => CashRegisterResource::collection($created),
+            ], Response::HTTP_CREATED);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error creating cash registers', [
+                'error'   => $e->getMessage(),
+                'user_id'=> $user->id,
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permisos para crear cajas registradoras'
-            ], 403);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (Exception $e) {
-            Log::error('Error creating cash register: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la caja registradora'
-            ], 500);
+                'message' => 'Error al crear las cajas',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function show(string $id){
@@ -131,73 +124,58 @@ class CashRegisterController extends Controller{
             ], 500);
         }
     }
-    public function createMultiple(Request $request){
+    public function open(Request $request, string $id){
         try {
-            Gate::authorize('create', CashRegister::class);
+            $user = Auth::user();
             $request->validate([
-                'quantity' => 'required|integer|min:1|max:20'
+                'opening_amount' => ['required', 'numeric', 'min:0'],
             ]);
-            $quantity = $request->quantity;
-            $cashRegisters = CashRegister::createMultipleCashRegisters($quantity);
-            
-            if ($cashRegisters) {
+            $hasOpenSession = CashRegisterSession::where('opened_by', $user->id)
+                ->where('status', 'abierta')
+                ->exists();
+            if ($hasOpenSession) {
                 return response()->json([
-                    'success' => true,
-                    'message' => "Se crearon {$quantity} cajas exitosamente",
-                    'data' => CashRegisterResource::collection($cashRegisters)
-                ], 201);
+                    'success' => false,
+                    'message' => 'Ya tienes una caja aperturada'
+                ], 409);
             }
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear las cajas'
-            ], 500);
-        } catch (AuthorizationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes permisos para crear cajas registradoras'
-            ], 403);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (Exception $e) {
-            Log::error('Error creating multiple cash registers: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear las cajas registradoras'
-            ], 500);
-        }
-    }
-    public function open(Request $request, $id){
-        try {
-            $cashRegister = CashRegister::findOrFail($id);
-            Gate::authorize('open', $cashRegister);
-            $request->validate([
-                'opening_amount' => 'required|numeric|min:0',
+            $cashRegister = CashRegister::where('id', $id)
+                ->where('sub_branch_id', $user->sub_branch_id)
+                ->firstOrFail();
+            if ($cashRegister->current_session_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta caja ya está siendo utilizada'
+                ], 409);
+            }
+            DB::beginTransaction();
+            $session = CashRegisterSession::create([
+                'cash_register_id' => $cashRegister->id,
+                'status'           => 'abierta',
+                'opened_by'        => $user->id,
+                'opening_amount'   => $request->opening_amount,
+                'opened_at'        => Carbon::now(),
+                'created_by'       => $user->id,
             ]);
-            $result = $cashRegister->openCashRegister($request->opening_amount);
-            if (!$result['success']) {
-                return response()->json($result, 400);
-            }
-            return response()->json($result, 200);
-        } catch (AuthorizationException $e) {
+            $cashRegister->update([
+                'current_session_id' => $session->id,
+            ]);
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Caja aperturada correctamente',
+                'data' => [
+                    'cash_register_id' => $cashRegister->id,
+                    'session_id'       => $session->id,
+                    'opened_at'        => $session->opened_at->format('d/m/Y h:i:s A'),
+                    'opening_amount'   => $session->opening_amount
+                ]
+            ], 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permisos para abrir esta caja'
-            ], 403);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Caja registradora no encontrada'
-            ], 404);
-        } catch (Exception $e) {
-            Log::error('Error opening cash register: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al abrir la caja registradora'
+                'message' => 'Error al aperturar la caja'
             ], 500);
         }
     }

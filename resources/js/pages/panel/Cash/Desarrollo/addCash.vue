@@ -2,35 +2,18 @@
   <div class="mb-4">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-2xl font-bold">Gestión de Cajas Registradoras</h2>
-      <Button 
-        label="Crear Múltiples Cajas" 
-        icon="pi pi-plus" 
-        @click="showDialog = true"
-        severity="contrast"
-      />
+      <Button label="Crear Múltiples Cajas" icon="pi pi-plus" @click="showDialog = true" severity="contrast" />
     </div>
 
     <!-- Dialog para crear múltiples cajas -->
-    <Dialog 
-      v-model:visible="showDialog" 
-      modal 
-      header="Crear Múltiples Cajas" 
-      :style="{ width: '30rem' }"
-    >
+    <Dialog v-model:visible="showDialog" modal header="Crear Múltiples Cajas" :style="{ width: '30rem' }">
       <div class="flex flex-col gap-4">
         <div>
           <label for="quantity" class="block text-sm font-medium mb-2">
             Cantidad de Cajas
           </label>
-          <InputNumber
-            id="quantity"
-            v-model="quantity"
-            :min="1"
-            :max="20"
-            showButtons
-            class="w-full"
-            :class="{ 'p-invalid': errors.quantity }"
-          />
+          <InputNumber id="quantity" v-model="quantity" :min="1" :max="20" showButtons class="w-full"
+            :class="{ 'p-invalid': errors.quantity }" />
           <small v-if="errors.quantity" class="text-red-500">{{ errors.quantity }}</small>
         </div>
 
@@ -43,20 +26,9 @@
       </div>
 
       <template #footer>
-        <Button 
-          label="Cancelar" 
-          icon="pi pi-times" 
-          @click="closeDialog" 
-          severity="secondary"
-          text
-        />
-        <Button 
-          label="Crear" 
-          icon="pi pi-check" 
-          @click="createMultipleCashes" 
-          :loading="isCreating"
-          severity="contrast"
-        />
+        <Button label="Cancelar" icon="pi pi-times" @click="closeDialog" severity="secondary" text />
+        <Button label="Crear" icon="pi pi-check" @click="createMultipleCashes" :loading="isCreating"
+          severity="contrast" />
       </template>
     </Dialog>
   </div>
@@ -88,7 +60,7 @@ const closeDialog = () => {
 
 const createMultipleCashes = async () => {
   errors.value = {};
-  
+
   if (quantity.value < 1 || quantity.value > 20) {
     errors.value.quantity = 'La cantidad debe estar entre 1 y 20';
     return;
@@ -108,13 +80,8 @@ const createMultipleCashes = async () => {
         detail: response.data.message,
         life: 3000
       });
-      
       closeDialog();
-      
-      // Emitir evento para refrescar la lista
       emit('refresh');
-      
-      // Recargar la página para actualizar la lista
       router.reload({ only: ['cashRegisters'] });
     }
   } catch (error: any) {

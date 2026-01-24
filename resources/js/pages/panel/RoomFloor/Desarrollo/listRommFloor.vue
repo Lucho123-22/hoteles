@@ -3,175 +3,46 @@
         <!-- Información Principal -->
         <div class="col-span-12 lg:col-span-8">
             <!-- Encabezado de la Habitación -->
-            <div class="mb-6">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <div class="flex items-center gap-3 mb-2">
-                            <div class="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-lg border-2 border-primary-300 dark:border-primary-700">
-                                <span class="text-2xl font-bold text-primary-700 dark:text-primary-300">
-                                    {{ roomData?.room_number }}
-                                </span>
-                            </div>
-                            <div>
-                                <h2 class="text-2xl font-bold text-surface-900 dark:text-surface-0">
-                                    Habitación {{ roomData?.room_number }}
-                                </h2>
-                                <p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
-                                    {{ roomData?.full_name }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <!-- Piso -->
-                    <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                        <div class="flex items-center gap-3">
-                            <i class="pi pi-building text-2xl text-primary-500"></i>
-                            <div>
-                                <p class="text-sm text-surface-600 dark:text-surface-400">Piso</p>
-                                <p class="font-semibold text-surface-900 dark:text-surface-0">
-                                    {{ roomData?.floor?.name }}
-                                </p>
-                                <p class="text-xs text-surface-500 dark:text-surface-400">
-                                    Nivel {{ roomData?.floor?.floor_number }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tipo de Habitación -->
-                    <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                        <div class="flex items-center gap-3">
-                            <i class="pi pi-home text-2xl text-primary-500"></i>
-                            <div>
-                                <p class="text-sm text-surface-600 dark:text-surface-400">Tipo de Habitación</p>
-                                <p class="font-semibold text-surface-900 dark:text-surface-0">
-                                    {{ roomData?.room_type?.name }}
-                                </p>
-                                <p class="text-xs text-surface-500 dark:text-surface-400">
-                                    Capacidad: {{ roomData?.room_type?.capacity }} persona(s)
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Moneda seleccionada -->
-                    <div 
-                        v-if="selectedCurrency"
-                        class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border-2 cursor-pointer transition-all border-green-500 bg-green-50 dark:bg-green-900/30 shadow-lg"
-                    >
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center gap-3">
-                                <i class="pi pi-dollar text-2xl text-primary-500"></i>
-                                <div>
-                                    <p class="text-sm text-surface-600 dark:text-surface-400">Moneda</p>
-                                    <p class="font-semibold text-surface-900 dark:text-surface-0">
-                                        {{ selectedCurrency?.name }}
-                                    </p>
-                                    <p class="text-xs text-surface-500 dark:text-surface-400">
-                                        {{ selectedCurrency?.code }} — {{ selectedCurrency?.symbol }}
-                                    </p>
-                                </div>
-                            </div>
-                            <i class="pi pi-check-circle text-green-500 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <RoomHeader 
+                :room-data="store.roomData"
+                :selected-currency="store.selectedCurrency"
+            />
 
             <!-- Selector de Tarifa -->
-            <div class="mb-6" v-if="!isTimerRunning">
-                <div class="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-700">
-                    <h3 class="text-lg font-bold text-surface-900 dark:text-surface-0 mb-4 flex items-center gap-2">
-                        <i class="pi pi-money-bill"></i>
-                        Seleccionar Tarifa
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div 
-                            @click="selectRate('hour')"
-                            :class="[
-                                'p-4 rounded-lg border-2 cursor-pointer transition-all',
-                                selectedRate === 'hour' 
-                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-lg' 
-                                    : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 hover:border-primary-300'
-                            ]"
-                        >
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-surface-600 dark:text-surface-400">Por Hora</span>
-                                <i v-if="selectedRate === 'hour'" class="pi pi-check-circle text-primary-500"></i>
-                            </div>
-                            <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                                {{ selectedCurrency?.symbol || 'S/' }} {{ roomData?.room_type?.base_price_per_hour }}
-                            </p>
-                        </div>
-
-                        <div 
-                            @click="selectRate('day')"
-                            :class="[
-                                'p-4 rounded-lg border-2 cursor-pointer transition-all',
-                                selectedRate === 'day' 
-                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-lg' 
-                                    : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 hover:border-primary-300'
-                            ]"
-                        >
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-surface-600 dark:text-surface-400">Por Día</span>
-                                <i v-if="selectedRate === 'day'" class="pi pi-check-circle text-primary-500"></i>
-                            </div>
-                            <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                                {{ selectedCurrency?.symbol || 'S/' }} {{ roomData?.room_type?.base_price_per_day }}
-                            </p>
-                        </div>
-
-                        <div 
-                            @click="selectRate('night')"
-                            :class="[
-                                'p-4 rounded-lg border-2 cursor-pointer transition-all',
-                                selectedRate === 'night' 
-                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-lg' 
-                                    : 'border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 hover:border-primary-300'
-                            ]"
-                        >
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-surface-600 dark:text-surface-400">Por Noche</span>
-                                <i v-if="selectedRate === 'night'" class="pi pi-check-circle text-primary-500"></i>
-                            </div>
-                            <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                                {{ selectedCurrency?.symbol || 'S/' }} {{ roomData?.room_type?.base_price_per_night }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <RateSelector 
+                v-if="!store.isTimerRunning"
+                :room-data="store.roomData"
+                :selected-rate="store.selectedRate"
+                :selected-currency="store.selectedCurrency"
+                @select-rate="store.selectRate"
+            />
 
             <!-- Componente: Registro de Cliente -->
             <CustomerRegistration 
-                v-model="selectedClient"
-                :disabled="isTimerRunning"
+                v-model="store.selectedClient"
+                :disabled="store.isTimerRunning"
                 class="mb-6"
-                @customer-saved="onCustomerSaved"
+                @customer-saved="store.setCustomer"
             />
 
             <!-- Componente: Productos Adicionales -->
             <ProductSales 
-                v-model="products"
-                :currency-symbol="selectedCurrency?.symbol || 'S/'"
-                :disabled="isTimerRunning"
+                v-model="store.products"
+                :currency-symbol="store.selectedCurrency?.symbol || 'S/'"
+                :disabled="store.isTimerRunning"
                 class="mb-6"
             />
 
             <!-- Componente: Resumen / Boleta -->
             <BillingSummary 
-                :room-number="roomData?.room_number"
-                :room-price="getCurrentRoomPrice()"
-                :selected-rate="selectedRate"
-                :time-amount="timeAmount"
-                :products="products"
-                :currency-symbol="selectedCurrency?.symbol || 'S/'"
-                :currency-code="selectedCurrency?.code || 'PEN'"
-                v-model="voucherType"
+                :room-number="store.roomData?.room_number"
+                :room-price="store.currentRoomPrice"
+                :selected-rate="store.selectedRate"
+                :time-amount="store.timeAmount"
+                :products="store.products"
+                :currency-symbol="store.selectedCurrency?.symbol || 'S/'"
+                :currency-code="store.selectedCurrency?.code || 'PEN'"
+                v-model="store.voucherType"
             />
         </div>
 
@@ -179,856 +50,158 @@
         <div class="col-span-12 lg:col-span-4">
             <div class="sticky top-6">
                 <!-- Estado Actual -->
-                <div class="text-center mb-6">
-                    <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0 mb-2">
-                        Estado de la Habitación
-                    </h3>
-                    <div class="inline-flex items-center justify-center w-full">
-                        <Tag 
-                            :value="getStatusLabel(roomData?.status)" 
-                            :severity="getStatusSeverity(roomData?.status)"
-                            class="text-lg px-6 py-3"
-                        />
-                    </div>
-                </div>
+                <RoomStatus :room-data="store.roomData" />
 
                 <!-- Cronómetro REGRESIVO -->
-                <div class="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 p-8 rounded-xl border-2 border-primary-200 dark:border-primary-700 mb-6">
-                    <div class="text-center">
-                        <i :class="[
-                            'pi pi-clock text-4xl mb-4',
-                            isTimerRunning && remainingSeconds <= 300 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-primary-600 dark:text-primary-400'
-                        ]"></i>
-                        <p class="text-sm text-surface-600 dark:text-surface-400 mb-2">
-                            {{ isTimerRunning ? 'Tiempo Restante' : 'Tiempo a Contratar' }}
-                        </p>
-                        <div :class="[
-                            'font-mono text-5xl font-bold mb-2',
-                            isTimerRunning && remainingSeconds <= 300 ? 'text-red-700 dark:text-red-300' : 'text-primary-700 dark:text-primary-300'
-                        ]">
-                            {{ formattedTime }}
-                        </div>
-                        <p class="text-xs text-surface-500 dark:text-surface-400">
-                            {{ isTimerRunning ? (remainingSeconds <= 0 ? '¡Tiempo agotado! Se cobrará tiempo extra.' : 'En curso') : 'Sin actividad' }}
-                        </p>
-                        
-                        <!-- Barra de progreso -->
-                        <div v-if="isTimerRunning" class="mt-4">
-                            <div class="w-full bg-surface-300 dark:bg-surface-600 rounded-full h-2">
-                                <div 
-                                    :class="[
-                                        'h-2 rounded-full transition-all duration-1000',
-                                        remainingSeconds <= 300 ? 'bg-red-500' : 'bg-primary-500'
-                                    ]"
-                                    :style="{ width: `${progressPercentage}%` }"
-                                ></div>
-                            </div>
-                            <p class="text-xs mt-2 text-surface-600 dark:text-surface-400">
-                                {{ progressPercentage > 0 ? progressPercentage.toFixed(1) : 0 }}% del tiempo restante
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <Timer
+                    :is-running="store.isTimerRunning"
+                    :formatted-time="store.formattedTime"
+                    :remaining-seconds="store.remainingSeconds"
+                    :progress-percentage="store.progressPercentage"
+                />
 
                 <!-- Control de Tiempo -->
-                <div class="mb-4 p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                    <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                        Cantidad de Tiempo
-                    </label>
-                    <div class="flex gap-2">
-                        <InputNumber 
-                            v-model="timeAmount" 
-                            :min="1"
-                            :max="24"
-                            showButtons
-                            class="flex-1"
-                            :disabled="isTimerRunning"
-                        />
-                        <Button 
-                            :label="getTimeUnit(selectedRate)" 
-                            severity="secondary"
-                            disabled
-                        />
-                    </div>
-                </div>
+                <TimeControl
+                    v-model="store.timeAmount"
+                    :selected-rate="store.selectedRate"
+                    :is-timer-running="store.isTimerRunning"
+                    @update:model-value="store.updateTimeAmount"
+                />
 
                 <!-- Botones de Acción -->
-                <Button 
-                    v-if="!isTimerRunning"
-                    label="Iniciar Servicio" 
-                    icon="pi pi-play" 
-                    severity="success"
-                    size="large"
-                    class="w-full mb-4"
-                    :disabled="roomData?.status !== 'available' || !selectedClient || !selectedRate || !selectedCurrency"
-                    @click="confirmStartService"
-                />
-                <Button 
-                    v-else
-                    label="Finalizar Servicio" 
-                    icon="pi pi-stop" 
-                    severity="danger"
-                    size="large"
-                    class="w-full mb-4"
-                    @click="confirmFinishService"
+                <ActionButtons
+                    :is-timer-running="store.isTimerRunning"
+                    :can-start="store.canStartService"
+                    @start="store.confirmStartService"
+                    @finish="store.confirmFinishService"
                 />
 
                 <!-- Información Rápida -->
-                <div class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700">
-                    <h4 class="font-semibold mb-3 text-surface-900 dark:text-surface-0">
-                        <i class="pi pi-info-circle mr-2"></i>Información Rápida
-                    </h4>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-surface-600 dark:text-surface-400">Tipo:</span>
-                            <span class="font-semibold text-surface-900 dark:text-surface-0">
-                                {{ roomData?.room_type?.name }}
-                            </span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-surface-600 dark:text-surface-400">Capacidad:</span>
-                            <span class="font-semibold text-surface-900 dark:text-surface-0">
-                                {{ roomData?.room_type?.capacity }} persona(s)
-                            </span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-surface-600 dark:text-surface-400">Moneda:</span>
-                            <span class="font-semibold text-green-600 dark:text-green-400">
-                                {{ selectedCurrency?.symbol }} {{ selectedCurrency?.code }}
-                            </span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-surface-600 dark:text-surface-400">Tarifa:</span>
-                            <span class="font-semibold text-green-600 dark:text-green-400">
-                                {{ selectedRate ? getRateLabel(selectedRate) : 'No seleccionada' }}
-                            </span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-surface-600 dark:text-surface-400">Comprobante:</span>
-                            <span class="font-semibold text-primary-600 dark:text-primary-400">
-                                {{ voucherType.toUpperCase() }}
-                            </span>
-                        </div>
-                        <div v-if="selectedClient" class="flex justify-between pt-2 border-t">
-                            <span class="text-surface-600 dark:text-surface-400">Cliente:</span>
-                            <span class="font-semibold text-blue-600 dark:text-blue-400">
-                                {{ selectedClient?.name }}
-                            </span>
-                        </div>
-                        <div v-if="currentBookingId" class="flex justify-between pt-2 border-t">
-                            <span class="text-surface-600 dark:text-surface-400">Booking ID:</span>
-                            <span class="font-semibold text-purple-600 dark:text-purple-400 text-xs">
-                                {{ currentBookingId }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                <QuickInfo
+                    :room-data="store.roomData"
+                    :selected-currency="store.selectedCurrency"
+                    :selected-rate="store.selectedRate"
+                    :voucher-type="store.voucherType"
+                    :selected-client="store.selectedClient"
+                    :current-booking-id="store.currentBookingId"
+                />
             </div>
         </div>
     </div>
 
     <!-- Diálogos Modulares -->
     <StartServiceDialog 
-        v-model:visible="showStartDialog"
+        v-model:visible="store.showStartDialog"
         :service-data="startServiceData"
-        :payment-methods="paymentMethods"
-        :loading="processingPayment"
+        :payment-methods="store.paymentMethods"
+        :loading="store.processingPayment"
         @confirm="handleStartService"
-        @cancel="showStartDialog = false"
+        @cancel="store.showStartDialog = false"
     />
 
     <FinishServiceDialog 
-        v-model:visible="showFinishDialog"
+        v-model:visible="store.showFinishDialog"
         :service-data="finishServiceData"
         :time-data="timeFinishData"
-        :payment-methods="paymentMethods"
-        :loading="processingFinish"
+        :payment-methods="store.paymentMethods"
+        :loading="store.processingFinish"
         @confirm="handleFinishService"
-        @cancel="showFinishDialog = false"
+        @cancel="store.showFinishDialog = false"
     />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import Button from 'primevue/button';
-import Tag from 'primevue/tag';
-import Badge from 'primevue/badge';
-import InputNumber from 'primevue/inputnumber';
-import { useToast } from 'primevue/usetoast';
-import axios from 'axios';
+import { computed, onMounted, onUnmounted } from 'vue';
+import { useRoomServiceStore } from '../interface/Useroomservicestore';
+import type { StartServicePayload, FinishServicePayload, RoomData } from '../interface/Useroomservicestore';
 
 // Importar componentes modulares
+import RoomHeader from '../components/Roomheader.vue';
+import RateSelector from '../components/Rateselector.vue';
+import RoomStatus from '../components/Roomstatus.vue';
+import Timer from '../components/Timer.vue';
+import TimeControl from '../components/Timecontrol.vue';
+import ActionButtons from '../components/Actionbuttons.vue';
+import QuickInfo from '../components/Quickinfo.vue';
 import CustomerRegistration from './CustomerRegistration.vue';
 import ProductSales from './ProductSales.vue';
 import BillingSummary from './BillingSummary.vue';
 import StartServiceDialog from './StartServiceDialog.vue';
 import FinishServiceDialog from './FinishServiceDialog.vue';
 
+// ==========================================
+// PROPS
+// ==========================================
 interface Props {
-    roomData?: any;
+    roomData?: RoomData;
 }
 
 const props = defineProps<Props>();
-const toast = useToast();
 
 // ==========================================
-// ESTADOS PRINCIPALES
+// STORE
 // ==========================================
-const selectedRate = ref<'hour' | 'day' | 'night' | null>(null);
-const selectedClient = ref<any>(null);
-const products = ref<any[]>([]);
-const isTimerRunning = ref(false);
-const remainingSeconds = ref(0);
-const totalSeconds = ref(0);
-const timerInterval = ref<any>(null);
-const timeAmount = ref(1);
-const voucherType = ref<'boleta' | 'ticket' | 'factura'>('boleta');
-
-// Estados de datos necesarios
-const currencies = ref<any[]>([]);
-const selectedCurrency = ref<any>(null);
-const rateTypes = ref<any[]>([]);
-const paymentMethods = ref<any[]>([]);
-const userCashRegister = ref<any>(null);
-
-// Estados para diálogos
-const showStartDialog = ref(false);
-const processingPayment = ref(false);
-const showFinishDialog = ref(false);
-const processingFinish = ref(false);
-
-// Estado del booking actual
-const currentBookingId = ref<string | null>(null);
+const store = useRoomServiceStore();
 
 // ==========================================
-// COMPUTED PROPERTIES
+// COMPUTED PROPERTIES FOR DIALOGS
 // ==========================================
-const formattedTime = computed(() => {
-    const totalSecs = Math.abs(remainingSeconds.value);
-    const hours = Math.floor(totalSecs / 3600);
-    const minutes = Math.floor((totalSecs % 3600) / 60);
-    const seconds = totalSecs % 60;
-    
-    const sign = remainingSeconds.value < 0 ? '-' : '';
-    return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-});
-
-const progressPercentage = computed(() => {
-    if (totalSeconds.value === 0) return 0;
-    const percentage = (remainingSeconds.value / totalSeconds.value) * 100;
-    return Math.max(0, Math.min(100, percentage));
-});
-
 const startServiceData = computed(() => ({
-    clientName: selectedClient.value?.name || '',
-    roomNumber: props.roomData?.room_number || '',
-    rateLabel: getRateLabel(selectedRate.value),
-    timeAmount: timeAmount.value,
-    timeUnit: getTimeUnit(selectedRate.value),
-    cashRegisterName: userCashRegister.value?.name || '',
-    productsCount: products.value.length,
-    currencySymbol: selectedCurrency.value?.symbol || 'S/',
-    totalAmount: calculateTotal()
+    clientName: store.selectedClient?.name || '',
+    roomNumber: store.roomData?.room_number || '',
+    rateLabel: store.getRateLabel(store.selectedRate),
+    timeAmount: store.timeAmount,
+    timeUnit: store.getTimeUnit(store.selectedRate),
+    cashRegisterName: store.userCashRegister?.name || '',
+    productsCount: store.products.length,
+    currencySymbol: store.selectedCurrency?.symbol || 'S/',
+    totalAmount: store.totalAmount
 }));
 
 const finishServiceData = computed(() => ({
-    clientName: selectedClient.value?.name || '',
-    roomNumber: props.roomData?.room_number || '',
-    currencySymbol: selectedCurrency.value?.symbol || 'S/',
+    clientName: store.selectedClient?.name || '',
+    roomNumber: store.roomData?.room_number || '',
+    currencySymbol: store.selectedCurrency?.symbol || 'S/',
     pendingAmount: 0.00
 }));
 
 const timeFinishData = computed(() => ({
-    contractedTime: `${timeAmount.value} ${getTimeUnit(selectedRate.value)}`,
-    extraTime: formatExtraTime(),
-    hasExtraTime: remainingSeconds.value < 0
+    contractedTime: `${store.timeAmount} ${store.getTimeUnit(store.selectedRate)}`,
+    extraTime: store.extraTimeFormatted,
+    hasExtraTime: store.hasExtraTime
 }));
 
 // ==========================================
-// EVENTOS DE COMPONENTES
+// EVENT HANDLERS
 // ==========================================
-const onCustomerSaved = (customer: any) => {
-    console.log('✅ Cliente guardado:', customer);
-    selectedClient.value = customer;
-};
-
-// ==========================================
-// MÉTODOS DE TARIFA Y TIEMPO
-// ==========================================
-const selectRate = (rate: 'hour' | 'day' | 'night') => {
-    if (!isTimerRunning.value) {
-        selectedRate.value = rate;
-    }
-};
-
-const getRateLabel = (rate: string | null) => {
-    const labels: Record<string, string> = {
-        'hour': 'Por Hora',
-        'day': 'Por Día',
-        'night': 'Por Noche'
-    };
-    return rate ? labels[rate] : '';
-};
-
-const getTimeUnit = (rate: string | null) => {
-    const units: Record<string, string> = {
-        'hour': 'Hora(s)',
-        'day': 'Día(s)',
-        'night': 'Noche(s)'
-    };
-    return rate ? units[rate] : '';
-};
-
-const getCurrentRoomPrice = () => {
-    if (!selectedRate.value || !props.roomData?.room_type) return 0;
-    const rates: Record<string, string> = {
-        'hour': props.roomData.room_type.base_price_per_hour,
-        'day': props.roomData.room_type.base_price_per_day,
-        'night': props.roomData.room_type.base_price_per_night
-    };
-    return parseFloat(rates[selectedRate.value] || '0');
-};
-
-const calculateTotal = () => {
-    const roomTotal = getCurrentRoomPrice() * timeAmount.value;
-    const productsTotal = products.value.reduce((sum, p) => {
-        const quantity = parseFloat(p.quantity || p.cantidad || 0);
-        const price = parseFloat(p.precio_venta || p.price || 0);
-        return sum + (quantity * price);
-    }, 0);
-    return (roomTotal + productsTotal).toFixed(2);
-};
-
-const calculateTotalSeconds = () => {
-    if (!selectedRate.value) return 0;
-    
-    const multipliers: Record<string, number> = {
-        'hour': 3600,
-        'day': 86400,
-        'night': 28800
-    };
-    
-    return timeAmount.value * multipliers[selectedRate.value];
-};
-
-const formatExtraTime = () => {
-    const extraSeconds = Math.abs(remainingSeconds.value);
-    const hours = Math.floor(extraSeconds / 3600);
-    const minutes = Math.floor((extraSeconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-};
-
-// ==========================================
-// MÉTODOS DE ESTADO
-// ==========================================
-const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-        'available': 'Disponible',
-        'occupied': 'Ocupada',
-        'maintenance': 'Mantenimiento',
-        'cleaning': 'Limpieza'
-    };
-    return labels[status] || status;
-};
-
-const getStatusSeverity = (status: string) => {
-    const severities: Record<string, string> = {
-        'available': 'success',
-        'occupied': 'danger',
-        'maintenance': 'warn',
-        'cleaning': 'info'
-    };
-    return severities[status] || 'secondary';
-};
-
-// ==========================================
-// INICIAR SERVICIO
-// ==========================================
-const confirmStartService = async () => {
-    if (!selectedClient.value) {
-        toast.add({
-            severity: 'warn',
-            summary: 'Cliente Requerido',
-            detail: 'Debe registrar un cliente primero',
-            life: 3000
-        });
-        return;
-    }
-    
-    if (!selectedClient.value.id) {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'El cliente no tiene un ID válido',
-            life: 4000
-        });
-        return;
-    }
-    
-    if (!selectedRate.value) {
-        toast.add({
-            severity: 'warn',
-            summary: 'Tarifa Requerida',
-            detail: 'Debe seleccionar una tarifa',
-            life: 3000
-        });
-        return;
-    }
-    
-    if (!selectedCurrency.value) {
-        toast.add({
-            severity: 'warn',
-            summary: 'Moneda Requerida',
-            detail: 'Debe seleccionar una moneda',
-            life: 3000
-        });
-        return;
-    }
-
+const handleStartService = async (data: StartServicePayload) => {
     try {
-        await loadNecessaryData();
-        showStartDialog.value = true;
-    } catch (error: any) {
-        console.error('Error al cargar datos:', error);
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.message || 'No se pudieron cargar los datos necesarios',
-            life: 4000
-        });
+        await store.startService(data);
+    } catch (error) {
+        // Error handling is done in the store
+        console.error('Error starting service:', error);
     }
 };
 
-const handleStartService = async (data: { paymentMethod: any; operationNumber: string }) => {
-    processingPayment.value = true;
-
+const handleFinishService = async (data: FinishServicePayload) => {
     try {
-        const roomSubtotal = getCurrentRoomPrice() * timeAmount.value;
-        const productsSubtotal = products.value.reduce((sum, p) => {
-            const quantity = parseFloat(p.quantity || p.cantidad || 0);
-            const price = parseFloat(p.precio_venta || p.price || 0);
-            return sum + (quantity * price);
-        }, 0);
-        const totalAmount = roomSubtotal + productsSubtotal;
-
-        const getRateTypeId = () => {
-            const rateTypeMap: Record<string, string> = {
-                'hour': 'HOUR',
-                'day': 'DAY', 
-                'night': 'NIGHT'
-            };
-            
-            const rateCode = rateTypeMap[selectedRate.value!];
-            const rateType = rateTypes.value.find(rt => rt.code === rateCode);
-            
-            if (!rateType) {
-                throw new Error(`No se encontró el rate type para: ${selectedRate.value}`);
-            }
-            
-            return rateType.id;
-        };
-
-        const bookingData = {
-            room_id: props.roomData?.id,
-            customers_id: selectedClient.value.id,
-            rate_type_id: getRateTypeId(),
-            currency_id: selectedCurrency.value?.id,
-            quantity: timeAmount.value,
-            rate_per_hour: getCurrentRoomPrice(),
-            voucher_type: voucherType.value,
-            
-            payments: [
-                {
-                    payment_method_id: data.paymentMethod.id,
-                    amount: totalAmount,
-                    cash_register_id: userCashRegister.value.id,
-                    operation_number: data.paymentMethod.requires_reference ? data.operationNumber : null
-                }
-            ],
-            
-            consumptions: products.value.length > 0 ? products.value.map(p => ({
-                product_id: p.id,
-                quantity: parseFloat(p.quantity || p.cantidad || 0),
-                unit_price: parseFloat(p.precio_venta || p.price || 0)
-            })) : []
-        };
-
-        console.log('📤 Enviando booking:', bookingData);
-
-        const response = await axios.post('/bookings', bookingData);
-
-        console.log('✅ Respuesta del servidor:', response.data);
-
-        currentBookingId.value = response.data.data?.booking?.id || null;
-
-        toast.add({
-            severity: 'success',
-            summary: '✅ Servicio Iniciado',
-            detail: response.data.message || 'Habitación ocupada correctamente',
-            life: 4000
-        });
-
-        showStartDialog.value = false;
-        
-        totalSeconds.value = calculateTotalSeconds();
-        remainingSeconds.value = totalSeconds.value;
-        isTimerRunning.value = true;
-        
-        timerInterval.value = setInterval(() => {
-            remainingSeconds.value--;
-            
-            if (remainingSeconds.value === 0) {
-                toast.add({
-                    severity: 'warn',
-                    summary: '⚠️ Tiempo Contratado Agotado',
-                    detail: 'A partir de ahora se cobrará tiempo extra al finalizar.',
-                    life: 8000
-                });
-            }
-        }, 1000);
-
-        if (props.roomData) {
-            props.roomData.status = 'occupied';
-        }
-
-    } catch (error: any) {
-        console.error('❌ Error al crear booking:', error);
-        
-        if (error.response?.data?.errors) {
-            const errors = error.response.data.errors;
-            Object.keys(errors).forEach(key => {
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error de Validación',
-                    detail: `${key}: ${Array.isArray(errors[key]) ? errors[key][0] : errors[key]}`,
-                    life: 5000
-                });
-            });
-        } else if (error.response?.data?.message) {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response.data.message,
-                life: 5000
-            });
-        } else {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.message || 'Error al crear el booking',
-                life: 5000
-            });
-        }
-    } finally {
-        processingPayment.value = false;
+        await store.finishService(data);
+    } catch (error) {
+        // Error handling is done in the store
+        console.error('Error finishing service:', error);
     }
 };
-
-// ==========================================
-// FINALIZAR SERVICIO
-// ==========================================
-const confirmFinishService = async () => {
-    if (!currentBookingId.value) {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'No se encontró el ID del booking activo',
-            life: 4000
-        });
-        return;
-    }
-
-    showFinishDialog.value = true;
-};
-
-const handleFinishService = async (data: { paymentMethod: any | null; operationNumber: string; notes: string }) => {
-    if (!currentBookingId.value) {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'No se encontró el ID del booking activo',
-            life: 4000
-        });
-        return;
-    }
-
-    processingFinish.value = true;
-
-    try {
-        const finishData: any = {
-            notes: data.notes || undefined,
-        };
-
-        if (data.paymentMethod) {
-            finishData.payments = [
-                {
-                    payment_method_id: data.paymentMethod.id,
-                    amount: 0,
-                    cash_register_id: userCashRegister.value.id,
-                    operation_number: data.paymentMethod.requires_reference ? data.operationNumber : null
-                }
-            ];
-        }
-
-        console.log('📤 Finalizando booking:', currentBookingId.value);
-
-        const response = await axios.post(`/bookings/${currentBookingId.value}/finish`, finishData);
-
-        console.log('✅ Respuesta del servidor:', response.data);
-
-        if (timerInterval.value) {
-            clearInterval(timerInterval.value);
-            timerInterval.value = null;
-        }
-        isTimerRunning.value = false;
-
-        toast.add({
-            severity: 'success',
-            summary: '✅ Servicio Finalizado',
-            detail: response.data.message || 'Habitación pasa a limpieza',
-            life: 4000
-        });
-
-        showFinishDialog.value = false;
-
-        if (response.data.data?.time_summary?.extra_hours > 0) {
-            toast.add({
-                severity: 'info',
-                summary: '⏱️ Tiempo Extra Cobrado',
-                detail: `Se cobraron ${response.data.data.time_summary.extra_hours} hora(s) adicionales`,
-                life: 6000
-            });
-        }
-
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
-
-    } catch (error: any) {
-        console.error('❌ Error al finalizar booking:', error);
-        
-        if (error.response?.data?.message) {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response.data.message,
-                life: 5000
-            });
-        } else {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.message || 'Error al finalizar el servicio',
-                life: 5000
-            });
-        }
-    } finally {
-        processingFinish.value = false;
-    }
-};
-
-// ==========================================
-// CARGAR DATOS NECESARIOS
-// ==========================================
-const loadNecessaryData = async () => {
-    try {
-        const [currenciesRes, paymentMethodsRes, cashRegisterRes, rateTypesRes] = await Promise.all([
-            axios.get('/currencies'),
-            axios.get('/payments/methods'),
-            axios.get('/payments/user-cash-register'),
-            axios.get('/rate-types')
-        ]);
-
-        currencies.value = currenciesRes.data.data || currenciesRes.data;
-        paymentMethods.value = paymentMethodsRes.data.data || paymentMethodsRes.data;
-        userCashRegister.value = cashRegisterRes.data.data;
-        rateTypes.value = rateTypesRes.data.data || rateTypesRes.data;
-
-        if (currencies.value.length > 0 && !selectedCurrency.value) {
-            selectedCurrency.value = currencies.value[0];
-        }
-
-    } catch (error: any) {
-        console.error('Error al cargar datos:', error);
-        
-        if (error.response?.status === 404) {
-            throw new Error('No tienes una caja abierta. Debes aperturar una caja primero.');
-        } else {
-            throw new Error('No se pudieron cargar los datos necesarios');
-        }
-    }
-};
-
-const loadInitialData = async () => {
-    try {
-        await loadNecessaryData();
-    } catch (error: any) {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.message,
-            life: 5000
-        });
-    }
-};
-
-// ==========================================
-// SINCRONIZACIÓN CON BACKEND
-// ==========================================
-const syncWithBackend = async () => {
-    if (!props.roomData?.id) return;
-    
-    try {
-        const response = await axios.get(`/rooms/${props.roomData.id}`);
-        const roomInfo = response.data.data;
-        
-        // Si hay booking activo, sincronizar datos
-        if (roomInfo.current_booking) {
-            const booking = roomInfo.current_booking;
-            
-            // Actualizar estado del cronómetro
-            if (booking.remaining_seconds !== undefined) {
-                remainingSeconds.value = booking.remaining_seconds;
-                isTimerRunning.value = true;
-                currentBookingId.value = booking.booking_id;
-                
-                // Recuperar datos del cliente
-                if (booking.guest_name && booking.guest_client_id) {
-                    selectedClient.value = {
-                        id: booking.guest_client_id,
-                        name: booking.guest_name,
-                        document_number: booking.guest_document
-                    };
-                }
-                
-                // Recuperar tarifa
-                const rateTypeMap: Record<string, 'hour' | 'day' | 'night'> = {
-                    'Por Hora': 'hour',
-                    'Por Día': 'day',
-                    'Por Noche': 'night'
-                };
-                selectedRate.value = rateTypeMap[booking.rate_type] || null;
-                
-                // Recuperar cantidad de tiempo
-                if (booking.total_hours) {
-                    if (selectedRate.value === 'hour') {
-                        timeAmount.value = booking.total_hours;
-                    } else if (selectedRate.value === 'day') {
-                        timeAmount.value = Math.floor(booking.total_hours / 24);
-                    } else if (selectedRate.value === 'night') {
-                        timeAmount.value = Math.floor(booking.total_hours / 8);
-                    }
-                }
-                
-                // Calcular total de segundos basado en el tiempo contratado
-                totalSeconds.value = booking.total_hours * 3600;
-                
-                // Recuperar tipo de comprobante
-                voucherType.value = booking.voucher_type || 'boleta';
-                
-                // Recuperar productos/consumos
-                if (booking.consumptions && booking.consumptions.length > 0) {
-                    products.value = booking.consumptions.map((c: any) => ({
-                        id: c.product_id,
-                        nombre: c.product_name,
-                        cantidad: c.quantity,
-                        precio_venta: c.unit_price,
-                        quantity: c.quantity,
-                        price: c.unit_price,
-                        status: c.status, // ✅ Agregar el status
-                        consumed_at: c.consumed_at,
-                        consumption_id: c.id // ✅ ID del consumo
-                    }));
-                }
-                
-                // Iniciar cronómetro local si no está corriendo
-                if (!timerInterval.value) {
-                    timerInterval.value = setInterval(() => {
-                        remainingSeconds.value--;
-                        
-                        if (remainingSeconds.value === 0) {
-                            toast.add({
-                                severity: 'warn',
-                                summary: '⚠️ Tiempo Contratado Agotado',
-                                detail: 'A partir de ahora se cobrará tiempo extra.',
-                                life: 8000
-                            });
-                        }
-                    }, 1000);
-                }
-            }
-            
-            // Actualizar estado de la habitación
-            if (props.roomData) {
-                props.roomData.status = roomInfo.status;
-            }
-        } else {
-            // No hay booking activo, detener cronómetro
-            if (timerInterval.value) {
-                clearInterval(timerInterval.value);
-                timerInterval.value = null;
-            }
-            isTimerRunning.value = false;
-            currentBookingId.value = null;
-        }
-    } catch (error: any) {
-        console.error('Error al sincronizar con backend:', error);
-    }
-};
-
-// Intervalo para sincronización periódica (cada 30 segundos)
-const syncInterval = ref<any>(null);
 
 // ==========================================
 // LIFECYCLE HOOKS
 // ==========================================
 onMounted(async () => {
-    await loadInitialData();
-    
-    // Sincronizar al cargar
-    await syncWithBackend();
-    
-    // Sincronización periódica cada 30 segundos
-    syncInterval.value = setInterval(() => {
-        syncWithBackend();
-    }, 30000);
-    
-    if (selectedRate.value && !isTimerRunning.value) {
-        remainingSeconds.value = calculateTotalSeconds();
+    if (props.roomData) {
+        await store.initialize(props.roomData);
     }
 });
 
 onUnmounted(() => {
-    if (timerInterval.value) {
-        clearInterval(timerInterval.value);
-    }
-    if (syncInterval.value) {
-        clearInterval(syncInterval.value);
-    }
-});
-// ==========================================
-// WATCHERS
-// ==========================================
-watch([timeAmount, selectedRate], () => {
-    if (!isTimerRunning.value && selectedRate.value) {
-        remainingSeconds.value = calculateTotalSeconds();
-    }
-});
-
-// ==========================================
-// LIFECYCLE HOOKS
-// ==========================================
-onMounted(() => {
-    loadInitialData();
-    
-    if (selectedRate.value) {
-        remainingSeconds.value = calculateTotalSeconds();
-    }
-});
-
-onUnmounted(() => {
-    if (timerInterval.value) {
-        clearInterval(timerInterval.value);
-    }
+    store.cleanup();
 });
 </script>
