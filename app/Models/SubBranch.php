@@ -115,6 +115,11 @@ class SubBranch extends Model implements Auditable
         return $this->hasMany(Booking::class);
     }
 
+    public function pricingRanges()
+    {
+        return $this->hasMany(PricingRange::class);
+    }
+
     public function rooms()
     {
         return $this->hasManyThrough(

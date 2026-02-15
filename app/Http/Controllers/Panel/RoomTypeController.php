@@ -5,114 +5,120 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RoomType\StoreRoomTypeRequest;
 use App\Http\Requests\RoomType\UpdateRoomTypeRequest;
+use App\Http\Resources\Room\RoomTypeCollection;
 use App\Http\Resources\Room\RoomTypeResource;
 use App\Models\RoomType;
-use App\Pipelines\FilterByName;
-use App\Pipelines\FilterByState;
-use App\Support\ApiResponse;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Pipeline\Pipeline;
-use Illuminate\Support\Facades\DB;
-use Throwable;
+use Illuminate\Support\Facades\Auth;
 
-class RoomTypeController extends Controller{
-    use ApiResponse, AuthorizesRequests;
-    public function index(Request $request){
-        Gate::authorize('viewAny', RoomType::class);
-        $perPage = $request->input('per_page', 15);
-        $query = app(Pipeline::class)
-            ->send(RoomType::query())
-            ->through([
-                new FilterByName($request->input('search')),
-                new FilterByState($request->input('state')),
-            ])
-            ->thenReturn();
-        return RoomTypeResource::collection($query->paginate($perPage));
-    }
-    public function indexOpciones(Request $request){
-        Gate::authorize('viewAny', RoomType::class);
-        $perPage = $request->input('per_page', 15);
-        $query = app(Pipeline::class)
-            ->send(RoomType::query()->active())
-            ->through([
-                new FilterByName($request->input('search')),
-                new FilterByState($request->input('state')),
-            ])
-            ->thenReturn();
-        return RoomTypeResource::collection($query->paginate($perPage));
+class RoomTypeController extends Controller
+{
+    /**
+     * Listar todos los tipos de habitación
+     */
+    public function index(Request $request)
+    {
+        $query = RoomType::query();
+
+        // Filtros
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'ilike', "%{$request->search}%")
+                  ->orWhere('code', 'ilike', "%{$request->search}%");
+            });
+        }
+
+        // Ordenamiento
+        $sortBy = $request->get('sort_by', 'name');
+        $sortOrder = $request->get('sort_order', 'asc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Cargar relaciones opcionales
+        if ($request->boolean('with_rooms_count')) {
+            $query->withCount('rooms');
+        }
+
+        if ($request->boolean('with_pricing_ranges_count')) {
+            $query->withCount('pricingRanges');
+        }
+
+        $roomTypes = $query->get();
+
+        return new RoomTypeCollection($roomTypes);
     }
 
-    public function store(StoreRoomTypeRequest $request){
-        try {
-            DB::beginTransaction();
-            $roomType = RoomType::create($request->validated());
-            DB::commit();
-            return response()->json([
-                'message' => 'Tipo de habitación registrado correctamente.',
-                'data' => new RoomTypeResource($roomType),
-            ], 201);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al registrar el tipo de habitación.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+    /**
+     * Crear un nuevo tipo de habitación
+     */
+    public function store(StoreRoomTypeRequest $request): JsonResponse
+    {
+        $roomType = RoomType::create([
+            ...$request->validated(),
+            'created_by' => Auth::id(),
+        ]);
+
+        return (new RoomTypeResource($roomType))
+            ->response()
+            ->setStatusCode(201);
     }
-    public function update(UpdateRoomTypeRequest $request, RoomType $roomType){
-        try {
-            DB::beginTransaction();
-            $roomType->update($request->validated());
-            DB::commit();
-            return response()->json([
-                'message' => 'Tipo de habitación actualizado correctamente.',
-                'data' => new RoomTypeResource($roomType->fresh()),
-            ], 200);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al actualizar el tipo de habitación.',
-                'error' => $e->getMessage(),
-            ], 500);
+
+    /**
+     * Mostrar un tipo de habitación específico
+     */
+    public function show(Request $request, RoomType $roomType): RoomTypeResource
+    {
+        if ($request->boolean('with_rooms_count')) {
+            $roomType->loadCount('rooms');
         }
+
+        if ($request->boolean('with_pricing_ranges_count')) {
+            $roomType->loadCount('pricingRanges');
+        }
+
+        return new RoomTypeResource($roomType);
     }
-    public function show(RoomType $roomType){
-        Gate::authorize('view', $roomType);
-        try {
-            return response()->json([
-                'message' => 'Tipo de habitación obtenido correctamente.',
-                'data' => new RoomTypeResource($roomType),
-            ], 200);
-        } catch (Throwable $e) {
-            return response()->json([
-                'message' => 'Error al obtener el tipo de habitación.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+
+    /**
+     * Actualizar un tipo de habitación
+     */
+    public function update(UpdateRoomTypeRequest $request, RoomType $roomType): JsonResponse
+    {
+        $roomType->update([
+            ...$request->validated(),
+            'updated_by' => Auth::id(),
+        ]);
+
+        return (new RoomTypeResource($roomType->fresh()))
+            ->response()
+            ->setStatusCode(200);
     }
-    public function destroy(RoomType $roomType){
-        Gate::authorize('delete', $roomType);
-        try {
-            DB::beginTransaction();
-            
-            if ($roomType->rooms()->exists()) {
-                return response()->json([
-                    'message' => 'No se puede eliminar el tipo de habitación porque tiene habitaciones asociadas.',
-                ], 422);
-            }
-            $roomType->delete();
-            DB::commit();
+
+    /**
+     * Eliminar (soft delete) un tipo de habitación
+     */
+    public function destroy(RoomType $roomType): JsonResponse
+    {
+        // Verificar si tiene habitaciones asociadas
+        if ($roomType->rooms()->exists()) {
             return response()->json([
-                'message' => 'Tipo de habitación eliminado correctamente.',
-            ], 200);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al eliminar el tipo de habitación.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => 'No se puede eliminar este tipo de habitación porque tiene habitaciones asociadas',
+            ], 422);
         }
+
+        $roomType->update(['deleted_by' => Auth::id()]);
+        $roomType->delete();
+
+        return response()->json([
+            'message' => 'Tipo de habitación eliminado correctamente',
+        ], 200);
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class RoomType extends Model implements Auditable
@@ -60,18 +61,24 @@ class RoomType extends Model implements Auditable
         });
     }
 
-    // Relaciones
+    // ==========================================
+    // RELACIONES
+    // ==========================================
+    
     public function rooms()
     {
         return $this->hasMany(Room::class);
     }
 
-    public function branchRoomTypePrices()
+    public function pricingRanges()
     {
-        return $this->hasMany(BranchRoomTypePrice::class);
+        return $this->hasMany(PricingRange::class);
     }
 
-    // Scopes
+    // ==========================================
+    // SCOPES
+    // ==========================================
+    
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -82,13 +89,19 @@ class RoomType extends Model implements Auditable
         return $query->where('category', $category);
     }
 
-    // Mutators
+    // ==========================================
+    // MUTATORS
+    // ==========================================
+    
     public function setCodeAttribute($value)
     {
         $this->attributes['code'] = strtoupper($value);
     }
 
-    // Métodos auxiliares
+    // ==========================================
+    // MÉTODOS AUXILIARES
+    // ==========================================
+    
     public function hasAvailableRooms()
     {
         return $this->rooms()->where('status', 'available')->exists();
@@ -99,19 +112,88 @@ class RoomType extends Model implements Auditable
         return $this->rooms()->where('status', 'available')->count();
     }
 
-    // Generación de código RT0001
-    private static function generateCode(){
+    public function getActivePrices(string $subBranchId, ?string $rateTypeCode = null)
+    {
+        $query = $this->pricingRanges()
+                      ->where('sub_branch_id', $subBranchId)
+                      ->active()
+                      ->effectiveNow()
+                      ->with('rateType');
+
+        if ($rateTypeCode) {
+            $query->whereHas('rateType', function ($q) use ($rateTypeCode) {
+                $q->where('code', $rateTypeCode);
+            });
+        }
+
+        return $query->orderBy('time_from_minutes')->get();
+    }
+
+    public function getCheapestPrice(string $subBranchId, ?string $rateTypeCode = null)
+    {
+        $query = $this->pricingRanges()
+                      ->where('sub_branch_id', $subBranchId)
+                      ->active()
+                      ->effectiveNow();
+
+        if ($rateTypeCode) {
+            $query->whereHas('rateType', function ($q) use ($rateTypeCode) {
+                $q->where('code', $rateTypeCode);
+            });
+        }
+
+        return $query->orderBy('price', 'asc')->first();
+    }
+
+    public function hasPrices(string $subBranchId): bool
+    {
+        return $this->pricingRanges()
+                    ->where('sub_branch_id', $subBranchId)
+                    ->active()
+                    ->effectiveNow()
+                    ->exists();
+    }
+
+    public function getPriceRange(string $subBranchId, ?string $rateTypeCode = null): array
+    {
+        $query = $this->pricingRanges()
+                      ->where('sub_branch_id', $subBranchId)
+                      ->active()
+                      ->effectiveNow();
+
+        if ($rateTypeCode) {
+            $query->whereHas('rateType', function ($q) use ($rateTypeCode) {
+                $q->where('code', $rateTypeCode);
+            });
+        }
+
+        return [
+            'min' => $query->min('price') ?? 0,
+            'max' => $query->max('price') ?? 0,
+        ];
+    }
+
+    // ==========================================
+    // GENERACIÓN DE CÓDIGO (CORREGIDO PARA POSTGRESQL)
+    // ==========================================
+    
+    private static function generateCode()
+    {
         $prefix = 'RT';
+        
+        // PostgreSQL: usar SUBSTRING y CAST correctamente
         $lastRoomType = self::withTrashed()
             ->where('code', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(code, 3) AS INTEGER) DESC')
+            ->orderByRaw("CAST(SUBSTRING(code FROM 3) AS INTEGER) DESC")
             ->first();
+
         if ($lastRoomType) {
             $lastNumber = intval(substr($lastRoomType->code, 2));
             $newNumber = $lastNumber + 1;
         } else {
             $newNumber = 1;
         }
+
         return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -7,6 +7,6 @@ use Inertia\Inertia;
 use Inertia\Response;
 class PricingRangeWeb extends Controller{
     public function view(): Response{
-        return Inertia::render('panel/');
+        return Inertia::render('panel/PricingRange/indexPricingRange');
     }
 }

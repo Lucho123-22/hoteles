@@ -103,7 +103,6 @@ const model = computed(() => [
                 items: [ // Submenú interno
                     { label: 'Tipos de Habitación', icon: 'pi pi-fw pi-home', to: '/configuracion/tarifas-habitaciones/room-type' },
                     { label: 'Tipos de Tarifa', icon: 'pi pi-fw pi-dollar', to: '/configuracion/tarifas-habitaciones/rate-type' },
-                    { label: 'Precios por Tipo y Sucursal', icon: 'pi pi-fw pi-tag', to: '/configuracion/tarifas-habitaciones/branch-room-type-price' },
                     { label: 'Rangos de Precio', icon: 'pi pi-fw pi-clock', to: '/configuracion/tarifas-habitaciones/pricing-range' },
                 ]
             },

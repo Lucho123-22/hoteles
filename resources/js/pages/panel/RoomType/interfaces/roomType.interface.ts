@@ -1,110 +1,73 @@
-/**
- * Interface principal de RoomType
- */
-export interface IRoomType {
-    id?: string;
+export interface RoomType {
+    id: string; // UUID
     name: string;
     code: string;
-    description: string;
+    description: string | null;
     capacity: number;
     max_capacity: number | null;
     category: string | null;
     is_active: boolean;
-    created_at?: string;
-    updated_at?: string;
+    
+    // Información adicional
+    available_rooms_count?: number;
+    has_available_rooms?: boolean;
+    price_range?: {
+        min: number;
+        max: number;
+    };
+    cheapest_price?: number;
+    
+    // Contadores
+    rooms_count?: number;
+    pricing_ranges_count?: number;
+    
+    // Timestamps
+    created_at: string;
+    updated_at: string;
 }
 
-/**
- * Interface para crear/actualizar RoomType
- */
-export interface IRoomTypeForm {
+export interface RoomTypeFormData {
     name: string;
-    code?: string;
+    code?: string; // Auto-generado si no se proporciona
     description?: string;
     capacity: number;
-    max_capacity?: number | null;
-    category?: string | null;
-    is_active?: boolean;
-}
-
-/**
- * Interface para filtros de búsqueda
- */
-export interface IRoomTypeFilters {
-    search?: string;
-    state?: boolean | string;
-    per_page?: number;
-    page?: number;
-}
-
-/**
- * Interface para errores de validación del formulario
- */
-export interface IRoomTypeFormErrors {
-    name?: string;
-    code?: string;
-    description?: string;
-    capacity?: string;
-    max_capacity?: string;
+    max_capacity?: number;
     category?: string;
-    is_active?: string;
+    is_active: boolean;
 }
 
-/**
- * Interface para respuesta paginada de la API
- */
-export interface IRoomTypeResponse {
-    data: IRoomType[];
-    meta?: {
-        current_page: number;
-        from: number;
-        last_page: number;
-        per_page: number;
-        to: number;
+export interface RoomTypeResponse {
+    data: RoomType;
+    message?: string;
+}
+
+export interface RoomTypeCollection {
+    data: RoomType[];
+    meta: {
         total: number;
+        categories: string[];
     };
 }
 
-/**
- * Interface para respuesta de una operación exitosa
- */
-export interface IRoomTypeApiResponse {
-    message: string;
-    data: IRoomType;
+export interface RoomTypeFilters {
+    search?: string;
+    is_active?: boolean;
+    category?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    with_rooms_count?: boolean;
+    with_pricing_ranges_count?: boolean;
+    with_available_rooms?: boolean;
+    with_prices?: boolean;
+    sub_branch_id?: string;
+    rate_type_code?: string;
 }
 
-/**
- * Enum para categorías de habitación
- */
-export enum RoomTypeCategory {
-    ECONOMICA = 'Económica',
-    ESTANDAR = 'Estándar',
-    PREMIUM = 'Premium',
-    LUJO = 'Lujo'
-}
+export const ROOM_CATEGORIES = [
+    'Económica',
+    'Estándar',
+    'Premium',
+    'Lujo'
+] as const;
 
-/**
- * Array de categorías disponibles
- */
-export const ROOM_TYPE_CATEGORIES: string[] = [
-    RoomTypeCategory.ECONOMICA,
-    RoomTypeCategory.ESTANDAR,
-    RoomTypeCategory.PREMIUM,
-    RoomTypeCategory.LUJO
-];
-
-/**
- * Interface para el estado del store
- */
-export interface IRoomTypeState {
-    roomTypes: IRoomType[];
-    currentRoomType: IRoomType | null;
-    loading: boolean;
-    error: string | null;
-    pagination: {
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
-}
+export type RoomCategory = typeof ROOM_CATEGORIES[number];

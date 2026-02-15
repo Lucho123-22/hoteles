@@ -20,7 +20,7 @@ import { ref, onMounted } from 'vue';
 import AppLayout from '@/layout/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
-import ListRateType from './Desarrollo/ListRatetype.vue';
+import ListRateType from './Desarrollo/ListRateType.vue';
 import AddRateType from './Desarrollo/AddRateType.vue';
 
 const isLoading = ref(true);
@@ -28,14 +28,14 @@ const listRef = ref<InstanceType<typeof ListRateType>>();
 const addRef = ref<InstanceType<typeof AddRateType>>();
 
 const refreshList = () => {
-    // Solo refrescar si realmente necesitas recargar desde el servidor
-    // En este caso, NO es necesario porque el store ya actualiza el array localmente
+    // No es necesario recargar, el store ya actualiza el array localmente
+    // Pero si quieres forzar una recarga desde el servidor:
     // if (listRef.value) {
     //     listRef.value.fetchRateTypes();
     // }
 };
 
-const handleEdit = (id: number) => {
+const handleEdit = (id: string | number) => {
     if (addRef.value) {
         addRef.value.openEdit(id);
     }

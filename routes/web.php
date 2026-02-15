@@ -218,15 +218,6 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::delete('/{branch_room_type_price}', [BranchRoomTypePriceController::class, 'destroy']);
     });
 
-    Route::prefix('pricing-ranges')->group(function () {
-        Route::get('/', [PricingRangeController::class, 'index']);
-        Route::post('/', [PricingRangeController::class, 'store']);
-        Route::get('/price-for-minutes', [PricingRangeController::class, 'getPriceForMinutes']);
-        Route::get('/{pricing_range}', [PricingRangeController::class, 'show']);
-        Route::put('/{pricing_range}', [PricingRangeController::class, 'update']);
-        Route::delete('/{pricing_range}', [PricingRangeController::class, 'destroy']);
-    });
-
     Route::prefix('sub-branches/{subBranchId}/configuration')->group(function () {
         Route::get('/', [SubBranchConfigurationController::class, 'show']);
         Route::post('/', [SubBranchConfigurationController::class, 'store']);
@@ -290,14 +281,9 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::get('/exportar/reporte', [PagoPersonalController::class, 'export'])->name('export');
     });
     
-    Route::prefix('rate-types')->group(function () {
-        Route::get('/', [RateTypeController::class, 'index']);
-        Route::get('/opcones', [RateTypeController::class, 'indexOpciones']);
-        Route::post('/', [RateTypeController::class, 'store']);
-        Route::get('/{rateType}', [RateTypeController::class, 'show']);
-        Route::put('/{rateType}', [RateTypeController::class, 'update']);
-        Route::delete('/{rateType}', [RateTypeController::class, 'destroy']);
-    });
+    Route::apiResource('rate-types', RateTypeController::class)->parameters([
+        'rate-types' => 'rate_type'
+    ]);
 
     Route::get('currencies', [CurrencyController::class, 'index']);
 
@@ -381,15 +367,10 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
     });
 
     #ROOM TYPE => BACKEND
-    Route::prefix('room-types')->group(function () {
-        Route::get('/', [RoomTypeController::class, 'index'])->name('room.index');
-        Route::get('/opciones', [RoomTypeController::class, 'indexOpciones'])->name('room.index-opciones');
-        Route::post('/', [RoomTypeController::class, 'store'])->name('room.store');
-        Route::get('/{roomType}', [RoomTypeController::class, 'show'])->name('room.show');
-        Route::put('/{roomType}', [RoomTypeController::class, 'update'])->name('room.update');
-        Route::delete('/{roomType}', [RoomTypeController::class, 'destroy'])->name('room.destroy');
-    });
-    
+    Route::apiResource('room-types', RoomTypeController::class)->parameters([
+        'room-types' => 'room_type'
+    ]);
+
     #CONSULTAS DE DNI => BACKEND
     Route::get('/consulta/{dni}', [ConsultasDni::class, 'consultar'])->name('consultar.dni');
 
@@ -431,6 +412,16 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
         Route::get('available/search', 'availableRooms')->name('rooms.available');
         Route::get('search/advanced', 'advancedSearch')->name('rooms.advanced-search');
         Route::get('with-stats/index', 'indexWithStats')->name('rooms.index-with-stats');
+    });
+
+    Route::prefix('pricing-ranges')->group(function () {
+        Route::get('/', [PricingRangeController::class, 'index'])->name('pricing-ranges.index');
+        Route::post('/', [PricingRangeController::class, 'store'])->name('pricing-ranges.store');
+        Route::get('/find-price', [PricingRangeController::class, 'findPrice'])->name('pricing-ranges.find-price');
+        Route::get('/available-ranges', [PricingRangeController::class, 'availableRanges'])->name('pricing-ranges.available-ranges');
+        Route::get('/{pricing_range}', [PricingRangeController::class, 'show'])->name('pricing-ranges.show');
+        Route::put('/{pricing_range}', [PricingRangeController::class, 'update'])->name('pricing-ranges.update');
+        Route::delete('/{pricing_range}', [PricingRangeController::class, 'destroy'])->name('pricing-ranges.destroy');
     });
 
     Route::prefix('system-settings')->group(function () {

@@ -15,8 +15,16 @@ class RateTypeResource extends JsonResource
             'code' => $this->code,
             'description' => $this->description,
             'is_active' => $this->is_active,
-            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'display_name' => $this->getDisplayName(),
+            'icon' => $this->getIcon(),
+            'requires_time_range' => $this->requiresTimeRange(),
+            
+            // Metadatos
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
+            
+            // Relaciones opcionales
+            'pricing_ranges_count' => $this->whenCounted('pricingRanges'),
         ];
     }
 }

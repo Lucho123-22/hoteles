@@ -2,7 +2,9 @@
 
 namespace App\Http\Resources\PricingRange;
 
-use App\Http\Resources\BranchRoomTypePrice\BranchRoomTypePriceResource;
+use App\Http\Resources\RateType\RateTypeResource;
+use App\Http\Resources\Room\RoomTypeResource;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,22 +14,49 @@ class PricingRangeResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'branch_room_type_price_id' => $this->branch_room_type_price_id,
+            'sub_branch_id' => $this->sub_branch_id,
+            'room_type_id' => $this->room_type_id,
+            'rate_type_id' => $this->rate_type_id,
+            
+            // Rangos de tiempo
             'time_from_minutes' => $this->time_from_minutes,
             'time_to_minutes' => $this->time_to_minutes,
-            'price' => number_format($this->price, 2, '.', ''),
+            'formatted_time_range' => $this->getFormattedTimeRange(),
+            'duration_hours' => $this->getDurationInHours(),
+            
+            // Precio
+            'price' => (float) $this->price,
+            'price_per_hour' => $this->when(
+                $this->isHourlyRate(),
+                fn() => (float) $this->getPricePerHour()
+            ),
+            
+            // Vigencia
+            'effective_from' => Carbon::parse($this->effective_from)->format('d-m-Y'),
+            'effective_to' => Carbon::parse($this->effective_to)->format('d-m-Y'),
+
+            'is_effective' => $this->isEffective(),
+            
+            // Estado
             'is_active' => $this->is_active,
             
-            // Datos calculados
-            'duration_hours' => round($this->getDurationInHours(), 2),
-            'formatted_time_range' => $this->getFormattedTimeRange(),
-            'price_per_hour' => number_format($this->getPricePerHour(), 2, '.', ''),
+            // Flags útiles
+            'is_hourly_rate' => $this->isHourlyRate(),
+            'is_daily_rate' => $this->isDailyRate(),
+            'is_nightly_rate' => $this->isNightlyRate(),
             
             // Relaciones
-            'branch_room_type_price' => new BranchRoomTypePriceResource($this->whenLoaded('branchRoomTypePrice')),
+            'room_type' => $this->when(
+                $this->relationLoaded('roomType'),
+                fn() => new RoomTypeResource($this->roomType)
+            ),
+            'rate_type' => $this->when(
+                $this->relationLoaded('rateType'),
+                fn() => new RateTypeResource($this->rateType)
+            ),
             
-            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'created_at' => Carbon::parse($this->created_at)->format('d-m-Y H:i:s A'),
+            'updated_at' => Carbon::parse($this->updated_at)->format('d-m-Y H:i:s A'),
         ];
     }
 }

@@ -31,14 +31,14 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->unsignedBigInteger('deleted_by')->nullable();
             $table->timestamps();
-            $table->softDeletes();
+            $table->timestamp('deleted_at')->nullable();
             
             // Índices
-            $table->index(['is_active', 'deleted_at']);
-            $table->index('code');
-            $table->index('category');
-            $table->index('created_by');
-            $table->index('updated_by');
+            $table->index(['is_active', 'deleted_at'], 'idx_room_types_active');
+            $table->index('code', 'idx_room_types_code');
+            $table->index('category', 'idx_room_types_category');
+            $table->index('created_by', 'idx_room_types_created_by');
+            $table->index('updated_by', 'idx_room_types_updated_by');
         });
     }
     public function down(){

@@ -1,5 +1,5 @@
 <template>
-    <Head title="Tipo de habitaciones" />
+    <Head title="Tipos de Habitación" />
     <AppLayout>
         <div>
             <template v-if="isLoading">
@@ -7,8 +7,8 @@
             </template>
             <template v-else>
                 <div class="card">
-                    <addRoomType ref="addRef" @refresh="refreshList" />
-                    <listRoomType ref="listRef" @edit="handleEdit" />
+                    <AddRoomType ref="addRef" @refresh="refreshList" />
+                    <ListRoomType ref="listRef" @edit="handleEdit" />
                 </div>
             </template>
         </div>
@@ -20,20 +20,18 @@ import { ref, onMounted } from 'vue';
 import AppLayout from '@/layout/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import Espera from '@/components/Espera.vue';
-import listRoomType from './Desarrollo/listRoomType.vue';
-import addRoomType from './Desarrollo/addRoomType.vue';
+import ListRoomType from './Desarrollo/ListRoomType.vue';
+import AddRoomType from './Desarrollo/AddRoomType.vue';
 
 const isLoading = ref(true);
-const listRef = ref<InstanceType<typeof listRoomType>>();
-const addRef = ref<InstanceType<typeof addRoomType>>();
+const listRef = ref<InstanceType<typeof ListRoomType>>();
+const addRef = ref<InstanceType<typeof AddRoomType>>();
 
 const refreshList = () => {
-    if (listRef.value) {
-        listRef.value.fetchRoomTypes();
-    }
+    // El store ya actualiza el array localmente
 };
 
-const handleEdit = (id: string) => {
+const handleEdit = (id: string | number) => {
     if (addRef.value) {
         addRef.value.openEdit(id);
     }

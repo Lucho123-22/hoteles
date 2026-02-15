@@ -1,32 +1,30 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { RoomTypeService } from '../services';
-import type {
-    IRoomType,
-    IRoomTypeForm,
-    IRoomTypeFilters,
-} from '../interfaces';
+import { roomTypeService } from '../services/roomType.service';
+import type { RoomType, RoomTypeFormData, RoomTypeFilters } from '../interfaces/roomType.interface';
 
 export const useRoomTypeStore = defineStore('roomType', () => {
     // State
-    const roomTypes = ref<IRoomType[]>([]);
-    const currentRoomType = ref<IRoomType | null>(null);
-    const loading = ref<boolean>(false);
+    const roomTypes = ref<RoomType[]>([]);
+    const isLoading = ref(false);
     const error = ref<string | null>(null);
-    const pagination = ref({
-        current_page: 1,
-        last_page: 1,
-        per_page: 15,
-        total: 0
+    const filters = ref<RoomTypeFilters>({
+        is_active: undefined,
+        search: '',
+        category: undefined,
+        sort_by: 'name',
+        sort_order: 'asc',
+        with_rooms_count: false,
+        with_pricing_ranges_count: false
     });
 
     // Getters
-    const activeRoomTypes = computed(() =>
+    const activeRoomTypes = computed(() => 
         roomTypes.value.filter(rt => rt.is_active)
     );
 
     const roomTypesByCategory = computed(() => {
-        const grouped: Record<string, IRoomType[]> = {};
+        const grouped: Record<string, RoomType[]> = {};
         roomTypes.value.forEach(rt => {
             const category = rt.category || 'Sin categoría';
             if (!grouped[category]) {
@@ -37,145 +35,176 @@ export const useRoomTypeStore = defineStore('roomType', () => {
         return grouped;
     });
 
-    const totalRoomTypes = computed(() => pagination.value.total);
+    const totalRoomTypes = computed(() => roomTypes.value.length);
 
-    const hasRoomTypes = computed(() => roomTypes.value.length > 0);
+    const categories = computed(() => {
+        const cats = roomTypes.value
+            .map(rt => rt.category)
+            .filter((cat): cat is string => cat !== null && cat !== undefined);
+        return [...new Set(cats)];
+    });
 
     // Actions
-    async function fetchRoomTypes(filters?: IRoomTypeFilters): Promise<void> {
-        loading.value = true;
+    async function fetchRoomTypes(customFilters?: RoomTypeFilters) {
+        isLoading.value = true;
         error.value = null;
+        
         try {
-            const response = await RoomTypeService.getAll(filters);
+            const filtersToUse = customFilters || filters.value;
+            const response = await roomTypeService.getAll(filtersToUse);
             roomTypes.value = response.data;
-            if (response.meta) {
-                pagination.value = {
-                    current_page: response.meta.current_page,
-                    last_page: response.meta.last_page,
-                    per_page: response.meta.per_page,
-                    total: response.meta.total
-                };
-            }
-        } catch (e: any) {
-            error.value = e.response?.data?.message || 'Error al cargar tipos de habitación';
-            throw e;
-        } finally {
-            loading.value = false;
-        }
-    }
-
-    async function fetchRoomTypeById(id: string): Promise<IRoomType> {
-        loading.value = true;
-        error.value = null;
-        try {
-            const data = await RoomTypeService.getById(id);
-            currentRoomType.value = data;
-            return data;
-        } catch (e: any) {
-            error.value = e.response?.data?.message || 'Error al cargar el tipo de habitación';
-            throw e;
-        } finally {
-            loading.value = false;
-        }
-    }
-
-    async function createRoomType(data: IRoomTypeForm): Promise<{ message: string; data: IRoomType }> {
-        loading.value = true;
-        error.value = null;
-        try {
-            const response = await RoomTypeService.create(data);
-            roomTypes.value.unshift(response.data);
             return response;
-        } catch (e: any) {
-            error.value = e.response?.data?.message || 'Error al crear el tipo de habitación';
-            throw e;
+        } catch (err: any) {
+            error.value = err.response?.data?.message || 'Error al cargar tipos de habitación';
+            console.error('Error fetching room types:', err);
+            throw err;
         } finally {
-            loading.value = false;
+            isLoading.value = false;
         }
     }
 
-    async function updateRoomType(id: string, data: IRoomTypeForm): Promise<{ message: string; data: IRoomType }> {
-        loading.value = true;
+    async function fetchRoomTypeById(id: string, customFilters?: Partial<RoomTypeFilters>) {
+        isLoading.value = true;
         error.value = null;
+        
         try {
-            const response = await RoomTypeService.update(id, data);
+            const roomType = await roomTypeService.getById(id, customFilters);
+            
+            // Actualizar en el array local si existe
             const index = roomTypes.value.findIndex(rt => rt.id === id);
             if (index !== -1) {
-                roomTypes.value[index] = response.data;
+                roomTypes.value[index] = roomType;
+            } else {
+                roomTypes.value.push(roomType);
             }
-            if (currentRoomType.value?.id === id) {
-                currentRoomType.value = response.data;
-            }
-            return response;
-        } catch (e: any) {
-            error.value = e.response?.data?.message || 'Error al actualizar el tipo de habitación';
-            throw e;
+            
+            return roomType;
+        } catch (err: any) {
+            error.value = err.response?.data?.message || 'Error al cargar el tipo de habitación';
+            console.error('Error fetching room type:', err);
+            throw err;
         } finally {
-            loading.value = false;
+            isLoading.value = false;
         }
     }
 
-    async function deleteRoomType(id: string): Promise<{ message: string }> {
-        loading.value = true;
+    async function createRoomType(data: RoomTypeFormData) {
+        isLoading.value = true;
         error.value = null;
+        
         try {
-            const response = await RoomTypeService.delete(id);
-            roomTypes.value = roomTypes.value.filter(rt => rt.id !== id);
-            if (currentRoomType.value?.id === id) {
-                currentRoomType.value = null;
-            }
-            return response;
-        } catch (e: any) {
-            error.value = e.response?.data?.message || 'Error al eliminar el tipo de habitación';
-            throw e;
+            const newRoomType = await roomTypeService.create(data);
+            
+            // Agregar al array local
+            roomTypes.value.push(newRoomType);
+            
+            return newRoomType;
+        } catch (err: any) {
+            error.value = err.response?.data?.message || 'Error al crear el tipo de habitación';
+            console.error('Error creating room type:', err);
+            throw err;
         } finally {
-            loading.value = false;
+            isLoading.value = false;
         }
     }
 
-    function resetCurrentRoomType(): void {
-        currentRoomType.value = null;
+    async function updateRoomType(id: string, data: Partial<RoomTypeFormData>) {
+        isLoading.value = true;
+        error.value = null;
+        
+        try {
+            const updatedRoomType = await roomTypeService.update(id, data);
+            
+            // Actualizar en el array local
+            const index = roomTypes.value.findIndex(rt => rt.id === id);
+            if (index !== -1) {
+                roomTypes.value[index] = updatedRoomType;
+            }
+            
+            return updatedRoomType;
+        } catch (err: any) {
+            error.value = err.response?.data?.message || 'Error al actualizar el tipo de habitación';
+            console.error('Error updating room type:', err);
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
     }
 
-    function clearError(): void {
+    async function deleteRoomType(id: string) {
+        isLoading.value = true;
         error.value = null;
+        
+        try {
+            const response = await roomTypeService.delete(id);
+            
+            // Eliminar del array local
+            const index = roomTypes.value.findIndex(rt => rt.id === id);
+            if (index !== -1) {
+                roomTypes.value.splice(index, 1);
+            }
+            
+            return response;
+        } catch (err: any) {
+            error.value = err.response?.data?.message || 'Error al eliminar el tipo de habitación';
+            console.error('Error deleting room type:', err);
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
     }
 
-    function resetStore(): void {
-        roomTypes.value = [];
-        currentRoomType.value = null;
-        loading.value = false;
-        error.value = null;
-        pagination.value = {
-            current_page: 1,
-            last_page: 1,
-            per_page: 15,
-            total: 0
+    function setFilters(newFilters: Partial<RoomTypeFilters>) {
+        filters.value = { ...filters.value, ...newFilters };
+    }
+
+    function resetFilters() {
+        filters.value = {
+            is_active: undefined,
+            search: '',
+            category: undefined,
+            sort_by: 'name',
+            sort_order: 'asc',
+            with_rooms_count: false,
+            with_pricing_ranges_count: false
         };
+    }
+
+    function getRoomTypeById(id: string): RoomType | undefined {
+        return roomTypes.value.find(rt => rt.id === id);
+    }
+
+    function getRoomTypeByCode(code: string): RoomType | undefined {
+        return roomTypes.value.find(rt => rt.code === code);
+    }
+
+    function getRoomTypesByCategory(category: string): RoomType[] {
+        return roomTypes.value.filter(rt => rt.category === category);
     }
 
     return {
         // State
         roomTypes,
-        currentRoomType,
-        loading,
+        isLoading,
         error,
-        pagination,
-
+        filters,
+        
         // Getters
         activeRoomTypes,
         roomTypesByCategory,
         totalRoomTypes,
-        hasRoomTypes,
-
+        categories,
+        
         // Actions
         fetchRoomTypes,
         fetchRoomTypeById,
         createRoomType,
         updateRoomType,
         deleteRoomType,
-        resetCurrentRoomType,
-        clearError,
-        resetStore
+        setFilters,
+        resetFilters,
+        getRoomTypeById,
+        getRoomTypeByCode,
+        getRoomTypesByCategory
     };
 });
