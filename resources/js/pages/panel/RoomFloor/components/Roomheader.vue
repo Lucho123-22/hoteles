@@ -3,11 +3,12 @@
         <div class="flex justify-between items-start mb-6">
             <div>
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-lg border-2 border-primary-300 dark:border-primary-700">
-                        <span class="text-2xl font-bold text-primary-700 dark:text-primary-300">
-                            {{ roomData?.room_number }}
-                        </span>
-                    </div>
+                    <Link href="/panel/habitaciones/online"
+                        class="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-lg border-2 border-primary-300 dark:border-primary-700 hover:bg-primary-200 dark:hover:bg-primary-800/50 hover:border-primary-500 transition-all cursor-pointer">
+                    <span class="text-2xl font-bold text-primary-700 dark:text-primary-300">
+                        {{ roomData?.room_number }}
+                    </span>
+                    </Link>
                     <div>
                         <h2 class="text-2xl font-bold text-surface-900 dark:text-surface-0">
                             Habitación {{ roomData?.room_number }}
@@ -22,7 +23,8 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <!-- Piso -->
-            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+            <div
+                class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
                 <div class="flex items-center gap-3">
                     <i class="pi pi-building text-2xl text-primary-500"></i>
                     <div>
@@ -38,7 +40,8 @@
             </div>
 
             <!-- Tipo de Habitación -->
-            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+            <div
+                class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
                 <div class="flex items-center gap-3">
                     <i class="pi pi-home text-2xl text-primary-500"></i>
                     <div>
@@ -54,10 +57,8 @@
             </div>
 
             <!-- Moneda seleccionada -->
-            <div 
-                v-if="selectedCurrency"
-                class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border-2 cursor-pointer transition-all border-green-500 bg-green-50 dark:bg-green-900/30 shadow-lg"
-            >
+            <div v-if="selectedCurrency"
+                class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border-2 cursor-pointer transition-all border-green-500 bg-green-50 dark:bg-green-900/30 shadow-lg">
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-3">
                         <i class="pi pi-dollar text-2xl text-primary-500"></i>
@@ -80,6 +81,7 @@
 
 <script setup lang="ts">
 import type { RoomData, Currency } from '../interface/Useroomservicestore';
+import { Link } from '@inertiajs/vue3';
 
 interface Props {
     roomData?: RoomData | null;

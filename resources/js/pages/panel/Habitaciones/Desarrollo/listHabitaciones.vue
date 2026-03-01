@@ -186,12 +186,8 @@
                 <span class="font-semibold">S/ {{ formatCurrency(data.rate_per_unit) }}</span>
             </template>
         </Column>
-        <Column field="cantidad_texto" header="Tiempo" sortable style="min-width: 6rem"></Column>
-        <Column field="total_a_pagar" header="Total" sortable style="min-width: 8rem">
-            <template #body="{ data }">
-                <span class="font-bold">S/. {{ formatCurrency(data.total_a_pagar) }}</span>
-            </template>
-        </Column>
+        <Column field="cantidad_texto" header="Tiempo" sortable style="min-width: 7rem"></Column>
+        <Column field="room_subtotal" header="Total" sortable style="min-width: 8rem"></Column>
         
         <Column field="tuvo_consumo" header="Consumo" sortable style="min-width: 5rem">
             <template #body="{ data }">

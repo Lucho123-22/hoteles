@@ -2,7 +2,10 @@
     <br>
     <div class="p-6 border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 rounded-lg hover:shadow-lg transition-shadow h-full flex flex-col">
         <div class="flex justify-between items-start mb-4">
-            <div class="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-lg border-2 border-primary-300 dark:border-primary-700">
+            <div 
+                class="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-lg border-2 border-primary-300 dark:border-primary-700 cursor-pointer hover:bg-primary-200 dark:hover:bg-primary-800/50 hover:border-primary-500 transition-all"
+                @click="$emit('view-details', room.id, room.status)"
+            >
                 <span class="text-xl font-bold text-primary-700 dark:text-primary-300">
                     {{ room.room_number }}
                 </span>
@@ -29,12 +32,10 @@
         />
 
         <RoomTimer 
-            v-if="room.status === 'occupied'"
-            :check-in="room.check_in"
-            :check-out="room.check_out"
-            :centered="true"
-            class="mb-4"
-        />
+    v-if="room.status === 'occupied'"
+    :room-id="room.id"
+    :centered="true"
+/>
 
         <RoomActions
             :room="room"

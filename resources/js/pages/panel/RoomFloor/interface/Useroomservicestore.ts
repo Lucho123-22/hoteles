@@ -44,6 +44,90 @@ export interface RateType {
     id: string | number;
     code: string;
     name: string;
+    display_name?: string;
+    icon?: string;
+    requires_time_range?: boolean;
+}
+
+export interface PricingRange {
+    id: string | number;
+    sub_branch_id: string | number;
+    room_type_id: string | number;
+    rate_type_id: string | number;
+    time_from_minutes: number;
+    time_to_minutes: number;
+    formatted_time_range: string;
+    duration_hours: number;
+    price: number;
+    effective_from: string;
+    effective_to: string;
+    is_effective: boolean;
+    is_active: boolean;
+    is_hourly_rate: boolean;
+    is_daily_rate: boolean;
+    is_nightly_rate: boolean;
+    rate_type: RateType;
+    price_per_hour?: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SubBranchPolicies {
+    time_settings: {
+        max_allowed_time: number;
+        extra_tolerance: number;
+        apply_tolerance: boolean;
+    } | null;
+    penalty_settings: {
+        penalty_active: boolean;
+        charge_interval_minutes: number;
+        amount_per_interval: number;
+        penalty_type: 'fixed' | 'percentage';
+    } | null;
+    checkin_settings: {
+        checkin_time: string;
+        checkout_time: string;
+        early_checkin_cost: number;
+        late_checkout_cost: number;
+    } | null;
+    tax_settings: {
+        tax_percentage: number;
+        tax_included: boolean;
+    } | null;
+}
+
+export interface CurrentBooking {
+    booking_id: string | number;
+    booking_code: string;
+    booking_rate_per_unit: number;
+    guest_name: string;
+    guest_client_id: string | number;
+    guest_document?: string;
+    check_in: string;
+    check_out: string;
+    total_hours: number;
+    rate_type: string;
+    rate_type_id: string | number;
+    remaining_time: string;
+    remaining_seconds: number;
+    is_time_expired: boolean;
+    estimated_checkout: string;
+    elapsed_minutes: number;
+    current_price?: number;
+    price_per_minute?: number;
+    applicable_pricing_range?: {
+        id: string | number;
+        time_from_minutes: number;
+        time_to_minutes: number;
+        formatted_time_range: string;
+        price: number;
+        rate_type: string;
+        rate_type_code: string;
+    };
+    penalty_amount: number;
+    penalty_minutes: number;
+    voucher_type: VoucherType;
+    consumptions: Product[];
 }
 
 export interface CashRegister {
@@ -54,20 +138,33 @@ export interface CashRegister {
 export interface RoomData {
     id: string | number;
     room_number: string;
+    name?: string | null;
+    description?: string | null;
     full_name: string;
     status: 'available' | 'occupied' | 'maintenance' | 'cleaning';
+    is_active: boolean;
     floor?: {
+        id: string | number;
         name: string;
         floor_number: number;
     };
     room_type?: {
+        id: string | number;
         name: string;
+        code: string;
+        description?: string | null;
         capacity: number;
-        base_price_per_hour: string;
-        base_price_per_day: string;
-        base_price_per_night: string;
+        max_capacity: number;
+        category: string;
+        is_active: boolean;
+        created_at: string;
+        updated_at: string;
     };
-    current_booking?: any;
+    available_pricing_ranges?: PricingRange[];
+    sub_branch_policies?: SubBranchPolicies;
+    current_booking?: CurrentBooking | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface StartServicePayload {
@@ -81,7 +178,6 @@ export interface FinishServicePayload {
     notes: string;
 }
 
-export type RateTypeKey = 'hour' | 'day' | 'night';
 export type VoucherType = 'boleta' | 'ticket' | 'factura';
 
 // ==========================================
@@ -97,7 +193,8 @@ export const useRoomServiceStore = defineStore('roomService', () => {
 
     // Room & Service State
     const roomData = ref<RoomData | null>(null);
-    const selectedRate = ref<RateTypeKey | null>(null);
+    const selectedRate = ref<RateType | null>(null);
+    const selectedPricingRange = ref<PricingRange | null>(null);
     const timeAmount = ref<number>(1);
     const voucherType = ref<VoucherType>('boleta');
 
@@ -112,6 +209,10 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     const timerInterval = ref<NodeJS.Timeout | null>(null);
     const syncInterval = ref<NodeJS.Timeout | null>(null);
 
+    // Penalty State
+    const penaltyAmount = ref<number>(0);
+    const penaltyMinutes = ref<number>(0);
+    const roomSubtotal = ref<number>(0); // ✅ AGREGAR
     // Booking State
     const currentBookingId = ref<string | null>(null);
 
@@ -133,10 +234,11 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     // ==========================================
 
     const formattedTime = computed(() => {
-        const totalSecs = Math.abs(remainingSeconds.value);
+        // 🔥 FIX: Asegurar que todos los valores sean números enteros
+        const totalSecs = Math.abs(Math.floor(remainingSeconds.value));
         const hours = Math.floor(totalSecs / 3600);
         const minutes = Math.floor((totalSecs % 3600) / 60);
-        const seconds = totalSecs % 60;
+        const seconds = Math.floor(totalSecs % 60);
         
         const sign = remainingSeconds.value < 0 ? '-' : '';
         return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
@@ -149,16 +251,76 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     });
 
     const currentRoomPrice = computed(() => {
-        if (!selectedRate.value || !roomData.value?.room_type) return 0;
-        
-        const rates: Record<RateTypeKey, string> = {
-            hour: roomData.value.room_type.base_price_per_hour,
-            day: roomData.value.room_type.base_price_per_day,
-            night: roomData.value.room_type.base_price_per_night
-        };
-        
-        return parseFloat(rates[selectedRate.value] || '0');
+        if (!selectedPricingRange.value) return 0;
+        return selectedPricingRange.value.price;
     });
+
+    const availablePricingRanges = computed(() => {
+        return roomData.value?.available_pricing_ranges || [];
+    });
+
+    const filteredPricingRanges = computed(() => {
+        if (!selectedRate.value) return [];
+        
+        return availablePricingRanges.value.filter(range => 
+            range.rate_type.id === selectedRate.value?.id
+        );
+    });
+
+    const subBranchPolicies = computed(() => {
+        return roomData.value?.sub_branch_policies || null;
+    });
+
+    const hasToleranceEnabled = computed(() => {
+        const policies = subBranchPolicies.value;
+        return policies?.time_settings?.apply_tolerance
+            || policies?.time?.apply_tolerance
+            || false;
+    });
+
+    const toleranceMinutes = computed(() => {
+        if (!hasToleranceEnabled.value) return 0;
+        const policies = subBranchPolicies.value;
+        return policies?.time_settings?.extra_tolerance
+            || policies?.time?.extra_tolerance
+            || 0;
+    });
+
+    const calculatePenalty = computed(() => {
+    if (!hasExtraTime.value) return { amount: 0, minutes: 0 };
+
+    const policies = subBranchPolicies.value;
+    const penaltySettings = policies?.penalty_settings || policies?.penalty;
+    if (!penaltySettings?.penalty_active) return { amount: 0, minutes: 0 };
+
+    const exceededSeconds  = Math.abs(remainingSeconds.value);
+    const exceededMinutes  = Math.ceil(exceededSeconds / 60);
+
+    // ✅ Descontar tolerancia — durante este tiempo NO se cobra nada
+    const toleranceMins    = toleranceMinutes.value;
+    const minutosCobrables = exceededMinutes - toleranceMins;
+
+    // ✅ Aún dentro de tolerancia → sin penalización
+    if (minutosCobrables <= 0) return { amount: 0, minutes: 0 };
+
+    const intervalMinutes = penaltySettings.charge_interval_minutes || 15;
+    const intervals       = Math.ceil(minutosCobrables / intervalMinutes);
+    const penaltyMins     = intervals * intervalMinutes;
+
+    let penaltyAmt = 0;
+
+    if (penaltySettings.penalty_type === 'fixed') {
+        penaltyAmt = intervals * penaltySettings.amount_per_interval;
+    } else if (penaltySettings.penalty_type === 'percentage') {
+        const basePrice = currentRoomPrice.value;
+        penaltyAmt      = basePrice * (penaltySettings.amount_per_interval / 100) * intervals;
+    }
+
+    return {
+        amount:  Math.round(penaltyAmt * 100) / 100,
+        minutes: penaltyMins
+    };
+});
 
     const productsTotal = computed(() => {
         return products.value.reduce((sum, p) => {
@@ -173,7 +335,16 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     });
 
     const totalAmount = computed(() => {
-        return (roomTotal.value + productsTotal.value).toFixed(2);
+        let total = roomTotal.value + productsTotal.value + penaltyAmount.value;
+        
+        // Aplicar impuestos si está configurado
+        const taxSettings = subBranchPolicies.value?.tax_settings;
+        if (taxSettings && !taxSettings.tax_included) {
+            const taxPercentage = taxSettings.tax_percentage / 100;
+            total = total * (1 + taxPercentage);
+        }
+        
+        return total.toFixed(2);
     });
 
     const hasExtraTime = computed(() => {
@@ -193,6 +364,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
             roomData.value?.status === 'available' &&
             selectedClient.value !== null &&
             selectedRate.value !== null &&
+            selectedPricingRange.value !== null &&
             selectedCurrency.value !== null
         );
     });
@@ -201,22 +373,18 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     // HELPER METHODS
     // ==========================================
 
-    const getRateLabel = (rate: RateTypeKey | null): string => {
-        const labels: Record<RateTypeKey, string> = {
-            hour: 'Por Hora',
-            day: 'Por Día',
-            night: 'Por Noche'
-        };
-        return rate ? labels[rate] : '';
+    const getRateLabel = (rate: RateType | null): string => {
+        return rate?.display_name || rate?.name || '';
     };
 
-    const getTimeUnit = (rate: RateTypeKey | null): string => {
-        const units: Record<RateTypeKey, string> = {
-            hour: 'Hora(s)',
-            day: 'Día(s)',
-            night: 'Noche(s)'
-        };
-        return rate ? units[rate] : '';
+    const getTimeUnit = (rate: RateType | null): string => {
+        if (!rate) return '';
+        
+        if (rate.code === 'HOURLY') return 'Hora(s)';
+        if (rate.code === 'DAILY') return 'Día(s)';
+        if (rate.code === 'NIGHTLY') return 'Noche(s)';
+        
+        return 'Unidad(es)';
     };
 
     const getStatusLabel = (status: string): string => {
@@ -240,36 +408,19 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     };
 
     const calculateTotalSeconds = (): number => {
-        if (!selectedRate.value) return 0;
+        if (!selectedPricingRange.value) return 0;
         
-        const multipliers: Record<RateTypeKey, number> = {
-            hour: 3600,
-            day: 86400,
-            night: 28800
-        };
-        
-        return timeAmount.value * multipliers[selectedRate.value];
+        const durationHours = selectedPricingRange.value.duration_hours;
+        // 🔥 FIX: Asegurar que el resultado sea un número entero
+        return Math.floor(durationHours * 3600 * timeAmount.value);
     };
 
     const getRateTypeId = (): string | number => {
         if (!selectedRate.value) {
             throw new Error('No se ha seleccionado una tarifa');
         }
-
-        const rateTypeMap: Record<RateTypeKey, string> = {
-            hour: 'HOUR',
-            day: 'DAY',
-            night: 'NIGHT'
-        };
         
-        const rateCode = rateTypeMap[selectedRate.value];
-        const rateType = rateTypes.value.find(rt => rt.code === rateCode);
-        
-        if (!rateType) {
-            throw new Error(`No se encontró el rate type para: ${selectedRate.value}`);
-        }
-        
-        return rateType.id;
+        return selectedRate.value.id;
     };
 
     // ==========================================
@@ -287,7 +438,8 @@ export const useRoomServiceStore = defineStore('roomService', () => {
 
             currencies.value = currenciesRes.data.data || currenciesRes.data;
             paymentMethods.value = paymentMethodsRes.data.data || paymentMethodsRes.data;
-            userCashRegister.value = cashRegisterRes.data.data;
+            const cashData = cashRegisterRes.data.data;
+userCashRegister.value = cashData?.cash_register ?? null; // ✅
             rateTypes.value = rateTypesRes.data.data || rateTypesRes.data;
 
             if (currencies.value.length > 0 && !selectedCurrency.value) {
@@ -305,91 +457,133 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     };
 
     const syncWithBackend = async (): Promise<void> => {
-        if (!roomData.value?.id) return;
-        
-        try {
-            const response = await axios.get(`/rooms/${roomData.value.id}`);
-            const roomInfo = response.data.data;
-            
-            // Si hay booking activo, sincronizar datos
-            if (roomInfo.current_booking) {
-                const booking = roomInfo.current_booking;
-                
-                // Actualizar estado del cronómetro
-                if (booking.remaining_seconds !== undefined) {
-                    remainingSeconds.value = booking.remaining_seconds;
-                    isTimerRunning.value = true;
-                    currentBookingId.value = booking.booking_id;
-                    
-                    // Recuperar datos del cliente
-                    if (booking.guest_name && booking.guest_client_id) {
-                        selectedClient.value = {
-                            id: booking.guest_client_id,
-                            name: booking.guest_name,
-                            document_number: booking.guest_document
-                        };
-                    }
-                    
-                    // Recuperar tarifa
-                    const rateTypeMap: Record<string, RateTypeKey> = {
-                        'Por Hora': 'hour',
-                        'Por Día': 'day',
-                        'Por Noche': 'night'
-                    };
-                    selectedRate.value = rateTypeMap[booking.rate_type] || null;
-                    
-                    // Recuperar cantidad de tiempo
-                    if (booking.total_hours) {
-                        if (selectedRate.value === 'hour') {
-                            timeAmount.value = booking.total_hours;
-                        } else if (selectedRate.value === 'day') {
-                            timeAmount.value = Math.floor(booking.total_hours / 24);
-                        } else if (selectedRate.value === 'night') {
-                            timeAmount.value = Math.floor(booking.total_hours / 8);
-                        }
-                    }
-                    
-                    // Calcular total de segundos basado en el tiempo contratado
-                    totalSeconds.value = booking.total_hours * 3600;
-                    
-                    // Recuperar tipo de comprobante
-                    voucherType.value = booking.voucher_type || 'boleta';
-                    
-                    // Recuperar productos/consumos
-                    if (booking.consumptions && booking.consumptions.length > 0) {
-                        products.value = booking.consumptions.map((c: any) => ({
-                            id: c.product_id,
-                            nombre: c.product_name,
-                            cantidad: c.quantity,
-                            precio_venta: c.unit_price,
-                            quantity: c.quantity,
-                            price: c.unit_price,
-                            status: c.status,
-                            consumed_at: c.consumed_at,
-                            consumption_id: c.id
-                        }));
-                    }
-                    
-                    // Iniciar cronómetro local si no está corriendo
-                    if (!timerInterval.value) {
-                        startLocalTimer();
-                    }
-                }
-                
-                // Actualizar estado de la habitación
-                if (roomData.value) {
-                    roomData.value.status = roomInfo.status;
-                }
-            } else {
-                // No hay booking activo, detener cronómetro
-                stopLocalTimer();
-                isTimerRunning.value = false;
-                currentBookingId.value = null;
-            }
-        } catch (error: any) {
-            console.error('Error al sincronizar con backend:', error);
+    if (!roomData.value?.id) return;
+
+    try {
+        const response = await axios.get(`/rooms/${roomData.value.id}`);
+        const roomInfo = response.data.data;
+
+        // Actualizar pricing ranges y políticas
+        if (roomInfo.available_pricing_ranges && roomData.value) {
+            roomData.value.available_pricing_ranges = roomInfo.available_pricing_ranges;
         }
-    };
+
+        if (roomInfo.sub_branch_policies && roomData.value) {
+            roomData.value.sub_branch_policies = roomInfo.sub_branch_policies;
+        }
+
+        // ─────────────────────────────────────────────
+        // HAY BOOKING ACTIVO
+        // ─────────────────────────────────────────────
+        if (roomInfo.current_booking) {
+            const booking = roomInfo.current_booking;
+
+            if (booking.remaining_seconds !== undefined) {
+
+                // 1. Tiempo restante directo del backend
+                remainingSeconds.value = Math.floor(booking.remaining_seconds);
+                isTimerRunning.value   = true;
+                currentBookingId.value = booking.booking_id;
+
+                // 2. Penalización
+                penaltyAmount.value  = booking.penalty_amount  || 0;
+                penaltyMinutes.value = booking.penalty_minutes || 0;
+                roomSubtotal.value = parseFloat(String(booking.room_subtotal || 0));
+                // 3. Cliente
+                if (booking.guest_name && booking.guest_client_id) {
+                    selectedClient.value = {
+                        id:              booking.guest_client_id,
+                        name:            booking.guest_name,
+                        document_number: booking.guest_document
+                    };
+                }
+
+                // 4. Tipo de tarifa
+                const rateType = roomInfo.available_pricing_ranges?.find(
+                    (r: PricingRange) => r.rate_type.id === booking.rate_type_id
+                )?.rate_type;
+
+                if (rateType) {
+                    selectedRate.value = rateType;
+                }
+
+                // 5. Rango de precio aplicable
+                if (booking.applicable_pricing_range) {
+                    const applicableRange = roomInfo.available_pricing_ranges?.find(
+                        (r: PricingRange) => r.id === booking.applicable_pricing_range.id
+                    );
+                    if (applicableRange) {
+                        selectedPricingRange.value = applicableRange;
+                    }
+                }
+
+                // 6. timeAmount = quantity del booking (cuántas unidades contrató)
+                timeAmount.value = booking.quantity ?? 1;
+
+                // 7. totalSeconds: calculado desde check_in y check_out
+                // Esto es exacto sin importar si son minutos, horas o días
+                // check_in + check_out vienen del backend y son la fuente de verdad
+                if (booking.check_in && booking.check_out) {
+                    const checkInMs  = new Date(booking.check_in).getTime();
+                    const checkOutMs = new Date(booking.check_out).getTime();
+                    totalSeconds.value = Math.floor((checkOutMs - checkInMs) / 1000);
+                } else if (booking.applicable_pricing_range) {
+                    // Fallback: usar time_to_minutes del rango aplicable
+                    totalSeconds.value = booking.applicable_pricing_range.time_to_minutes
+                        * (booking.quantity ?? 1)
+                        * 60;
+                } else {
+                    // Último fallback: elapsed + remaining
+                    totalSeconds.value = Math.floor(
+                        (booking.elapsed_minutes * 60) + booking.remaining_seconds
+                    );
+                }
+
+                // 8. Comprobante
+                voucherType.value = booking.voucher_type || 'boleta';
+
+                // 9. Consumos/productos
+                if (booking.consumptions && booking.consumptions.length > 0) {
+                    products.value = booking.consumptions.map((c: any) => ({
+                        id:             c.product_id,
+                        nombre:         c.product_name,
+                        cantidad:       c.quantity,
+                        precio_venta:   c.unit_price,
+                        quantity:       c.quantity,
+                        price:          c.unit_price,
+                        status:         c.status,
+                        consumed_at:    c.consumed_at,
+                        consumption_id: c.id
+                    }));
+                }
+
+                // 10. Iniciar cronómetro local si no está corriendo
+                if (!timerInterval.value) {
+                    startLocalTimer();
+                }
+            }
+
+            // Actualizar estado de la habitación
+            if (roomData.value) {
+                roomData.value.status = roomInfo.status;
+            }
+
+        } else {
+            // ─────────────────────────────────────────────
+            // NO HAY BOOKING ACTIVO → limpiar todo
+            // ─────────────────────────────────────────────
+            stopLocalTimer();
+            isTimerRunning.value   = false;
+            currentBookingId.value = null;
+            penaltyAmount.value    = 0;
+            penaltyMinutes.value   = 0;
+            roomSubtotal.value     = 0;
+        }
+
+    } catch (error: any) {
+        console.error('Error al sincronizar con backend:', error);
+    }
+};
 
     // ==========================================
     // TIMER METHODS
@@ -399,13 +593,30 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         if (timerInterval.value) return;
 
         timerInterval.value = setInterval(() => {
-            remainingSeconds.value--;
+            // 🔥 FIX: Asegurar que el decremento sea de 1 segundo exacto
+            remainingSeconds.value = Math.floor(remainingSeconds.value - 1);
+            
+            // Actualizar penalización en tiempo real
+            const penalty = calculatePenalty.value;
+            penaltyAmount.value = penalty.amount;
+            penaltyMinutes.value = penalty.minutes;
             
             if (remainingSeconds.value === 0) {
                 toast.add({
                     severity: 'warn',
                     summary: '⚠️ Tiempo Contratado Agotado',
                     detail: 'A partir de ahora se cobrará tiempo extra.',
+                    life: 8000
+                });
+            }
+            
+            // Alerta cuando se exceda la tolerancia
+            const toleranceSecs = toleranceMinutes.value * 60;
+            if (remainingSeconds.value === -toleranceSecs && hasToleranceEnabled.value) {
+                toast.add({
+                    severity: 'error',
+                    summary: '🚨 Tolerancia Excedida',
+                    detail: 'Se aplicarán cargos por penalización.',
                     life: 8000
                 });
             }
@@ -438,10 +649,19 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     // SERVICE ACTIONS
     // ==========================================
 
-    const selectRate = (rate: RateTypeKey): void => {
+    const selectRate = (rateType: RateType): void => {
         if (!isTimerRunning.value) {
-            selectedRate.value = rate;
+            selectedRate.value = rateType;
+            selectedPricingRange.value = null; // Reset pricing range
+            timeAmount.value = 1; // Reset time amount
+        }
+    };
+
+    const selectPricingRange = (range: PricingRange): void => {
+        if (!isTimerRunning.value) {
+            selectedPricingRange.value = range;
             remainingSeconds.value = calculateTotalSeconds();
+            totalSeconds.value = remainingSeconds.value;
         }
     };
 
@@ -449,6 +669,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         if (!isTimerRunning.value) {
             timeAmount.value = amount;
             remainingSeconds.value = calculateTotalSeconds();
+            totalSeconds.value = remainingSeconds.value;
         }
     };
 
@@ -491,6 +712,16 @@ export const useRoomServiceStore = defineStore('roomService', () => {
             });
             return;
         }
+
+        if (!selectedPricingRange.value) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Rango de Precio Requerido',
+                detail: 'Debe seleccionar un rango de tiempo',
+                life: 3000
+            });
+            return;
+        }
         
         if (!selectedCurrency.value) {
             toast.add({
@@ -517,7 +748,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
     };
 
     const startService = async (payload: StartServicePayload): Promise<void> => {
-        if (!roomData.value || !selectedClient.value || !selectedCurrency.value) {
+        if (!roomData.value || !selectedClient.value || !selectedCurrency.value || !selectedPricingRange.value) {
             throw new Error('Faltan datos requeridos');
         }
 
@@ -528,6 +759,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
                 room_id: roomData.value.id,
                 customers_id: selectedClient.value.id,
                 rate_type_id: getRateTypeId(),
+                pricing_range_id: selectedPricingRange.value.id,
                 currency_id: selectedCurrency.value.id,
                 quantity: timeAmount.value,
                 rate_per_hour: currentRoomPrice.value,
@@ -627,93 +859,130 @@ export const useRoomServiceStore = defineStore('roomService', () => {
 
         showFinishDialog.value = true;
     };
-
     const finishService = async (payload: FinishServicePayload): Promise<void> => {
-        if (!currentBookingId.value) {
+    if (!currentBookingId.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'No se encontró el ID del booking activo',
+            life: 4000
+        });
+        return;
+    }
+
+    processingFinish.value = true;
+
+    try {
+        // ✅ Recargar caja activa por si se perdió
+        if (!userCashRegister.value?.id) {
+            const cashRegisterRes = await axios.get('/payments/user-cash-register');
+            const cashData = cashRegisterRes.data.data;
+            userCashRegister.value = cashData?.cash_register ?? null;
+        }
+
+        // ✅ Si aún no hay caja, abortar
+        if (!userCashRegister.value?.id) {
             toast.add({
                 severity: 'error',
-                summary: 'Error',
-                detail: 'No se encontró el ID del booking activo',
-                life: 4000
+                summary: 'Sin Caja Activa',
+                detail: 'No tienes una caja registradora abierta. Por favor abre una caja primero.',
+                life: 5000
             });
             return;
         }
 
-        processingFinish.value = true;
+        const finishData: any = {
+            notes: payload.notes || undefined,
+        };
 
-        try {
-            const finishData: any = {
-                notes: payload.notes || undefined,
-            };
+        // ✅ Calcular el monto real a cobrar (consumos pending + penalización)
+        const pendingProductsTotal = products.value
+            .filter(p => p.status === 'pending')
+            .reduce((sum, p) => {
+                const qty = parseFloat(String(p.quantity || p.cantidad || 0));
+                const price = parseFloat(String(p.precio_venta || p.price || 0));
+                return sum + (qty * price);
+            }, 0);
 
-            if (payload.paymentMethod) {
-                finishData.payments = [
-                    {
-                        payment_method_id: payload.paymentMethod.id,
-                        amount: 0,
-                        cash_register_id: userCashRegister.value?.id,
-                        operation_number: payload.paymentMethod.requires_reference 
-                            ? payload.operationNumber 
-                            : null
-                    }
-                ];
-            }
+        const penaltyTotal = penaltyAmount.value || 0;
+        const montoAdicional = parseFloat((pendingProductsTotal + penaltyTotal).toFixed(2));
 
-            console.log('📤 Finalizando booking:', currentBookingId.value);
-
-            const response = await axios.post(`/bookings/${currentBookingId.value}/finish`, finishData);
-
-            console.log('✅ Respuesta del servidor:', response.data);
-
-            stopLocalTimer();
-            isTimerRunning.value = false;
-
-            toast.add({
-                severity: 'success',
-                summary: '✅ Servicio Finalizado',
-                detail: response.data.message || 'Habitación pasa a limpieza',
-                life: 4000
-            });
-
-            showFinishDialog.value = false;
-
-            if (response.data.data?.time_summary?.extra_hours > 0) {
-                toast.add({
-                    severity: 'info',
-                    summary: '⏱️ Tiempo Extra Cobrado',
-                    detail: `Se cobraron ${response.data.data.time_summary.extra_hours} hora(s) adicionales`,
-                    life: 6000
-                });
-            }
-
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-
-        } catch (error: any) {
-            console.error('❌ Error al finalizar booking:', error);
-            
-            if (error.response?.data?.message) {
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: error.response.data.message,
-                    life: 5000
-                });
-            } else {
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: error.message || 'Error al finalizar el servicio',
-                    life: 5000
-                });
-            }
-            throw error;
-        } finally {
-            processingFinish.value = false;
+        if (payload.paymentMethod && montoAdicional > 0) {
+            finishData.payments = [
+                {
+                    payment_method_id: payload.paymentMethod.id,
+                    amount: montoAdicional,
+                    cash_register_id: userCashRegister.value.id, // ✅ ya validado
+                    operation_number: payload.paymentMethod.requires_reference
+                        ? payload.operationNumber
+                        : null
+                }
+            ];
         }
-    };
 
+        console.log('📤 Finalizando booking:', currentBookingId.value, finishData);
+
+        const response = await axios.post(`/bookings/${currentBookingId.value}/finish`, finishData);
+
+        console.log('✅ Respuesta del servidor:', response.data);
+
+        stopLocalTimer();
+        isTimerRunning.value = false;
+
+        toast.add({
+            severity: 'success',
+            summary: '✅ Servicio Finalizado',
+            detail: response.data.message || 'Habitación pasa a limpieza',
+            life: 4000
+        });
+
+        showFinishDialog.value = false;
+
+        if (penaltyTotal > 0) {
+            toast.add({
+                severity: 'info',
+                summary: '⏱️ Penalización Cobrada',
+                detail: `Se cobró S/. ${penaltyTotal.toFixed(2)} por tiempo extra`,
+                life: 6000
+            });
+        }
+
+        if (pendingProductsTotal > 0) {
+            toast.add({
+                severity: 'info',
+                summary: '🛒 Consumos Cobrados',
+                detail: `Se cobró S/. ${pendingProductsTotal.toFixed(2)} por consumos adicionales`,
+                life: 6000
+            });
+        }
+
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+
+    } catch (error: any) {
+        console.error('❌ Error al finalizar booking:', error);
+
+        if (error.response?.data?.message) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.response.data.message,
+                life: 5000
+            });
+        } else {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.message || 'Error al finalizar el servicio',
+                life: 5000
+            });
+        }
+        throw error;
+    } finally {
+        processingFinish.value = false;
+    }
+};
     // ==========================================
     // INITIALIZATION & CLEANUP
     // ==========================================
@@ -728,7 +997,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
             await syncWithBackend();
             startSyncInterval();
             
-            if (selectedRate.value && !isTimerRunning.value) {
+            if (selectedRate.value && selectedPricingRange.value && !isTimerRunning.value) {
                 remainingSeconds.value = calculateTotalSeconds();
             }
             
@@ -744,60 +1013,35 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         }
     };
 
-    /**
-     * 🔥 MÉTODO CRÍTICO: Limpia TODOS los timers y resetea el estado
-     * Llámalo antes de cambiar de habitación o al desmontar el componente
-     */
     const cleanup = (): void => {
         console.log('🧹 Limpiando store...');
         
-        // 1. Detener timers primero
         stopLocalTimer();
         stopSyncInterval();
-        
-        // 2. Resetear todo el estado
         resetState();
         
         console.log('✅ Store completamente limpio');
     };
 
-    /**
-     * Resetea todo el estado a valores iniciales
-     */
     const resetState = (): void => {
-        // Room Data
         roomData.value = null;
-        
-        // Service State
         selectedRate.value = null;
+        selectedPricingRange.value = null;
         timeAmount.value = 1;
         voucherType.value = 'boleta';
-        
-        // Customer & Products
         selectedClient.value = null;
         products.value = [];
-        
-        // Timer State
         isTimerRunning.value = false;
         remainingSeconds.value = 0;
         totalSeconds.value = 0;
-        
-        // Booking State
+        penaltyAmount.value = 0;
+        penaltyMinutes.value = 0;
+        roomSubtotal.value = 0;
         currentBookingId.value = null;
-        
-        // UI State
         showStartDialog.value = false;
         showFinishDialog.value = false;
         processingPayment.value = false;
         processingFinish.value = false;
-        
-        // NOTA: NO reseteamos estos porque queremos mantenerlos entre habitaciones
-        // para no tener que recargarlos cada vez:
-        // - currencies
-        // - selectedCurrency
-        // - rateTypes
-        // - paymentMethods
-        // - userCashRegister
         
         console.log('✅ Estado reseteado a valores iniciales');
     };
@@ -810,6 +1054,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         // State
         roomData,
         selectedRate,
+        selectedPricingRange,
         timeAmount,
         voucherType,
         selectedClient,
@@ -818,6 +1063,9 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         remainingSeconds,
         totalSeconds,
         currentBookingId,
+        penaltyAmount,
+        penaltyMinutes,
+        roomSubtotal,
         currencies,
         selectedCurrency,
         rateTypes,
@@ -832,6 +1080,12 @@ export const useRoomServiceStore = defineStore('roomService', () => {
         formattedTime,
         progressPercentage,
         currentRoomPrice,
+        availablePricingRanges,
+        filteredPricingRanges,
+        subBranchPolicies,
+        hasToleranceEnabled,
+        toleranceMinutes,
+        calculatePenalty,
         productsTotal,
         roomTotal,
         totalAmount,
@@ -847,6 +1101,7 @@ export const useRoomServiceStore = defineStore('roomService', () => {
 
         // Actions
         selectRate,
+        selectPricingRange,
         updateTimeAmount,
         setCustomer,
         updateProducts,

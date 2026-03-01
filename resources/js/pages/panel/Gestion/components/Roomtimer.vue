@@ -20,33 +20,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
-import { useRoomManagementStore } from '../interface/Roommanagement';
+import { computed } from 'vue';
 import { useRoomTimer } from '../interface/Roommanagement';
 
+// ============================================
+// PROPS - IMPORTANTE: Ahora usa roomId
+// ============================================
 const props = defineProps<{
-    checkIn: string | null;
-    checkOut: string | null;
+    roomId: string;  // ← CAMBIO IMPORTANTE: Ya no usa check_in/check_out
     centered?: boolean;
 }>();
 
-const store = useRoomManagementStore();
+// ============================================
+// COMPOSABLE
+// ============================================
 const timer = useRoomTimer();
 
-// Iniciar el intervalo cuando el componente se monta
-onMounted(() => {
-    store.startTimeInterval();
-});
-
-// Detener el intervalo cuando el componente se desmonta
-onUnmounted(() => {
-    store.stopTimeInterval();
-});
-
-const remainingTime = computed(() => timer.getRemainingTime(props.checkIn, props.checkOut));
-const isNear = computed(() => timer.isNear(props.checkOut));
-const isExpired = computed(() => timer.isExpired(props.checkOut));
-const isSuspicious = computed(() => timer.isSuspicious(props.checkOut));
+// ============================================
+// COMPUTED - Usa roomId en lugar de check_in/check_out
+// ============================================
+const remainingTime = computed(() => timer.getRemainingTime(props.roomId));
+const isNear = computed(() => timer.isNear(props.roomId));
+const isExpired = computed(() => timer.isExpired(props.roomId));
+const isSuspicious = computed(() => timer.isSuspicious(props.roomId));
 
 const timerClasses = computed(() => ({
     'animate-pulse bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400': isNear.value,

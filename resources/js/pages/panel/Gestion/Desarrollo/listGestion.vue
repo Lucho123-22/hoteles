@@ -13,20 +13,21 @@ import RoomGridItem from '../components/Roomgriditem.vue';
 
 const store = useRoomManagementStore();
 
-let timerInterval: NodeJS.Timeout | null = null;
-
+// ============================================
+// LIFECYCLE HOOKS
+// ============================================
 onMounted(async () => {
+    // 1. Cargar datos del API (esto inicializa roomTimers con remaining_time)
     await store.fetchFloors();
     
-    timerInterval = setInterval(() => {
-        store.updateCurrentTime();
-    }, 1000);
+    // 2. Iniciar el intervalo que resta 1 segundo cada segundo
+    // IMPORTANTE: Usa startTimeInterval() que actualiza los roomTimers
+    store.startTimeInterval();
 });
 
 onUnmounted(() => {
-    if (timerInterval) {
-        clearInterval(timerInterval);
-    }
+    // Detener el intervalo al desmontar
+    store.stopTimeInterval();
 });
 
 // ============================================
@@ -53,14 +54,13 @@ const handleStartBooking = (roomId: string) => {
     router.visit(`/panel/habitacion/${roomId}/nueva-reserva`);
 };
 
-// ✅ CORREGIDO - Ahora recibe roomId y roomNumber
 const handleLiberar = (roomId: string, roomNumber: string) => {
     console.log('🧹 Liberando habitación - Room ID:', roomId, 'Número:', roomNumber);
     store.openLiberarDialog(roomId, roomNumber);
 };
 
 // ============================================
-// ✅ MÉTODOS CORREGIDOS - USAN BOOKING_ID
+// MÉTODOS QUE USAN BOOKING_ID
 // ============================================
 
 const handleExtenderTiempo = (bookingId: string, roomNumber: string) => {

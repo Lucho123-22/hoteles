@@ -18,14 +18,14 @@ return new class extends Migration
             $table->uuid('rate_type_id');
             $table->uuid('currency_id');
             $table->uuid('sub_branch_id');
-            $table->uuid('client_id')->nullable();
-            
+            $table->uuid('pricing_range_id')->nullable()->after('rate_type_id');
+
             // TIEMPO Y FECHAS
             $table->datetime('check_in');
             $table->datetime('check_out');
             $table->datetime('actual_check_out')->nullable();
             $table->integer('quantity')->default(1)->comment('Cantidad de unidades reservadas');
-            $table->integer('total_hours');
+            $table->decimal('total_hours', 10, 2);
             $table->integer('actual_hours')->nullable();
             
             // COSTOS
@@ -85,7 +85,11 @@ return new class extends Migration
             $table->foreign('sub_branch_id')
                   ->references('id')
                   ->on('sub_branches');
-            
+            $table->foreign('pricing_range_id')
+                  ->references('id')
+                  ->on('pricing_ranges')
+                  ->onDelete('set null');
+
             // ÍNDICES
             $table->index(['room_id', 'status']);
             $table->index(['status', 'check_out']);

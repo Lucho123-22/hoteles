@@ -11,51 +11,8 @@
             v-tooltip.top="'Ver detalles'"
         />
 
-        <!-- Botón de Ajustes - Siempre visible -->
-        <Button 
-            icon="pi pi-cog" 
-            severity="secondary"
-            outlined
-            :class="gridLayout ? 'flex-1' : ''"
-            size="small"
-            @click="$emit('room-settings')"
-            v-tooltip.top="'Ajustes'"
-        />
 
         <!-- Botones para habitación OCUPADA -->
-        <template v-if="room.status === 'occupied'">
-            <!-- Vender productos -->
-            <Button 
-                icon="pi pi-shopping-cart" 
-                severity="success"
-                outlined
-                :class="gridLayout ? 'flex-1' : ''"
-                size="small"
-                @click="$emit('sell-products')"
-                v-tooltip.top="'Vender productos'"
-            />
-
-            <!-- Extender tiempo -->
-            <Button 
-                icon="pi pi-clock" 
-                severity="warning"
-                outlined
-                :class="gridLayout ? 'flex-1' : ''"
-                size="small"
-                @click="handleExtenderTiempo"
-                v-tooltip.top="'Extender tiempo'"
-            />
-
-            <!-- Finalizar reserva -->
-            <Button 
-                icon="pi pi-check" 
-                severity="primary"
-                :class="gridLayout ? 'flex-1' : ''"
-                size="small"
-                @click="handleFinalizarBooking"
-                v-tooltip.top="'Finalizar reserva'"
-            />
-        </template>
 
         <!-- Botón para habitación DISPONIBLE -->
         <Button 

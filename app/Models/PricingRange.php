@@ -53,6 +53,10 @@ class PricingRange extends Model implements Auditable
         return $this->belongsTo(RateType::class);
     }
 
+    public function bookings(){
+        return $this->hasMany(Booking::class);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

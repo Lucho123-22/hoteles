@@ -3,6 +3,15 @@
         <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
             Cantidad de Tiempo
         </label>
+
+        <!-- Info del rango seleccionado -->
+        <div v-if="selectedPricingRange" class="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
+            <div class="text-xs text-blue-700 dark:text-blue-300">
+                <i class="pi pi-info-circle mr-1"></i>
+                {{ selectedPricingRange.formatted_time_range }} = {{ selectedPricingRange.duration_hours }}h por unidad
+            </div>
+        </div>
+
         <div class="flex gap-2">
             <InputNumber 
                 :model-value="modelValue" 
@@ -11,13 +20,19 @@
                 :max="24"
                 showButtons
                 class="flex-1"
-                :disabled="isTimerRunning"
+                :disabled="isTimerRunning || !selectedPricingRange"
             />
             <Button 
                 :label="timeUnit" 
                 severity="secondary"
                 disabled
             />
+        </div>
+
+        <!-- Tiempo total -->
+        <div v-if="selectedPricingRange && totalHours > 0" class="mt-2 text-xs text-center text-surface-600 dark:text-surface-400">
+            <i class="pi pi-clock mr-1"></i>
+            Total: <span class="font-bold">{{ totalHours }}h</span>
         </div>
     </div>
 </template>
@@ -26,11 +41,12 @@
 import { computed } from 'vue';
 import InputNumber from 'primevue/inputnumber';
 import Button from 'primevue/button';
-import type { RateTypeKey } from '../interface/Useroomservicestore';
+import type { RateType, PricingRange } from '../interface/Useroomservicestore';
 
 interface Props {
     modelValue: number;
-    selectedRate: RateTypeKey | null;
+    selectedRate: RateType | null;
+    selectedPricingRange?: PricingRange | null;
     isTimerRunning: boolean;
 }
 
@@ -42,11 +58,19 @@ const props = defineProps<Props>();
 defineEmits<Emits>();
 
 const timeUnit = computed(() => {
-    const units: Record<RateTypeKey, string> = {
-        hour: 'Hora(s)',
-        day: 'Día(s)',
-        night: 'Noche(s)'
+    if (!props.selectedRate) return '';
+    
+    const units: Record<string, string> = {
+        'HOURLY': 'Hora(s)',
+        'DAILY': 'Día(s)',
+        'NIGHTLY': 'Noche(s)'
     };
-    return props.selectedRate ? units[props.selectedRate] : '';
+    
+    return units[props.selectedRate.code] || 'Unidad(es)';
+});
+
+const totalHours = computed(() => {
+    if (!props.selectedPricingRange) return 0;
+    return props.selectedPricingRange.duration_hours * props.modelValue;
 });
 </script>

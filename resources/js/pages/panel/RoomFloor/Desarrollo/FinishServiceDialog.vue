@@ -3,12 +3,12 @@
         v-model:visible="isVisible" 
         modal 
         header="Finalizar Servicio"
-        :style="{ width: '550px' }"
+        :style="{ width: '580px' }"
         @update:visible="$emit('update:visible', $event)"
     >
         <div class="space-y-4">
             <Message severity="info" :closable="false">
-                ¿Desea finalizar el servicio?
+                ¿Desea finalizar el servicio para la habitación <strong>{{ serviceData.roomNumber }}</strong>?
             </Message>
 
             <!-- Resumen de Tiempo -->
@@ -25,42 +25,103 @@
                         v-if="timeData.hasExtraTime" 
                         class="flex justify-between text-red-600 dark:text-red-400"
                     >
-                        <span>Tiempo extra:</span>
+                        <span>⚠️ Tiempo extra excedido:</span>
                         <span class="font-semibold">{{ timeData.extraTime }}</span>
+                    </div>
+                    <div v-else class="flex justify-between text-green-600 dark:text-green-400">
+                        <span>✅ Sin tiempo extra</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Resumen del Servicio -->
-            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+            <!-- Desglose Financiero -->
+            <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+                <h4 class="font-semibold mb-3 text-surface-900 dark:text-surface-0">
+                    <i class="pi pi-calculator mr-2"></i>Desglose del Cobro
+                </h4>
                 <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-surface-600 dark:text-surface-400">Cliente:</span>
-                        <span class="font-semibold">{{ serviceData.clientName }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-surface-600 dark:text-surface-400">Habitación:</span>
-                        <span class="font-semibold">{{ serviceData.roomNumber }}</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t">
-                        <span class="text-lg font-bold">Saldo pendiente:</span>
-                        <span class="text-lg font-bold text-orange-600 dark:text-orange-400">
-                            {{ serviceData.currencySymbol }} {{ serviceData.pendingAmount }}
+
+                    <!-- Habitación (ya pagado) -->
+                    <div class="flex justify-between items-center text-green-700 dark:text-green-400">
+                        <span class="flex items-center gap-1">
+                            <i class="pi pi-check-circle text-xs"></i>
+                            Habitación (ya pagado):
+                        </span>
+                        <span class="font-semibold">
+                            {{ serviceData.currencySymbol }} {{ serviceData.roomSubtotal?.toFixed(2) ?? '0.00' }}
                         </span>
                     </div>
-                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-2">
-                        * El tiempo extra (si existe) se calculará y cobrará automáticamente
+
+                    <!-- Consumos pending -->
+                    <div 
+                        v-if="serviceData.pendingProductsAmount > 0"
+                        class="flex justify-between items-center text-orange-600 dark:text-orange-400"
+                    >
+                        <span class="flex items-center gap-1">
+                            <i class="pi pi-shopping-cart text-xs"></i>
+                            Consumos adicionales:
+                        </span>
+                        <span class="font-semibold">
+                            {{ serviceData.currencySymbol }} {{ serviceData.pendingProductsAmount?.toFixed(2) }}
+                        </span>
+                    </div>
+
+                    <!-- Penalización -->
+                    <div 
+                        v-if="serviceData.penaltyAmount > 0"
+                        class="flex justify-between items-center text-red-600 dark:text-red-400"
+                    >
+                        <span class="flex items-center gap-1">
+                            <i class="pi pi-exclamation-triangle text-xs"></i>
+                            Penalización ({{ serviceData.penaltyMinutes }} min extra):
+                        </span>
+                        <span class="font-semibold">
+                            {{ serviceData.currencySymbol }} {{ serviceData.penaltyAmount?.toFixed(2) }}
+                        </span>
+                    </div>
+
+                    <div class="border-t border-surface-300 dark:border-surface-600 pt-2 mt-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-surface-600 dark:text-surface-400">
+                                Total ya pagado:
+                            </span>
+                            <span class="font-semibold text-green-600">
+                                {{ serviceData.currencySymbol }} {{ serviceData.roomSubtotal?.toFixed(2) ?? '0.00' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Saldo pendiente -->
+                    <div class="flex justify-between items-center pt-1">
+                        <span class="text-lg font-bold text-surface-900 dark:text-surface-0">
+                            Saldo a cobrar ahora:
+                        </span>
+                        <span 
+                            :class="[
+                                'text-lg font-bold',
+                                serviceData.pendingAmount > 0 
+                                    ? 'text-red-600 dark:text-red-400' 
+                                    : 'text-green-600 dark:text-green-400'
+                            ]"
+                        >
+                            {{ serviceData.currencySymbol }} {{ serviceData.pendingAmount?.toFixed(2) ?? '0.00' }}
+                        </span>
+                    </div>
+
+                    <p v-if="serviceData.pendingAmount <= 0" class="text-xs text-green-600 dark:text-green-400 mt-1">
+                        ✅ No hay saldo pendiente. El servicio se puede cerrar directamente.
                     </p>
                 </div>
             </div>
 
-            <!-- Método de Pago para saldo pendiente -->
+            <!-- Método de Pago — solo si hay saldo pendiente -->
             <div 
                 v-if="serviceData.pendingAmount > 0" 
                 class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"
             >
                 <h4 class="font-semibold mb-3 text-surface-900 dark:text-surface-0">
-                    <i class="pi pi-credit-card mr-2"></i>Método de Pago (Saldo Pendiente)
+                    <i class="pi pi-credit-card mr-2"></i>
+                    Método de Pago — {{ serviceData.currencySymbol }} {{ serviceData.pendingAmount?.toFixed(2) }}
                 </h4>
                 
                 <div class="grid grid-cols-2 gap-3">
@@ -94,14 +155,18 @@
                 </div>
             </div>
 
-            <!-- Notas Opcionales -->
+            <!-- Cliente y Habitación -->
+            <div class="flex justify-between text-sm text-surface-600 dark:text-surface-400 px-1">
+                <span>Cliente: <strong class="text-surface-900 dark:text-surface-0">{{ serviceData.clientName || 'Sin registrar' }}</strong></span>
+                <span>Habitación: <strong class="text-surface-900 dark:text-surface-0">{{ serviceData.roomNumber }}</strong></span>
+            </div>
+
+            <!-- Notas -->
             <div>
-                <label class="block text-sm font-medium mb-2">
-                    Notas (Opcional)
-                </label>
+                <label class="block text-sm font-medium mb-2">Notas (Opcional)</label>
                 <Textarea 
                     v-model="notes" 
-                    rows="3"
+                    rows="2"
                     placeholder="Observaciones al finalizar el servicio"
                     class="w-full"
                 />
@@ -115,8 +180,8 @@
                 @click="handleCancel" 
             />
             <Button 
-                label="Finalizar Servicio" 
-                icon="pi pi-check" 
+                :label="serviceData.pendingAmount > 0 ? 'Cobrar y Finalizar' : 'Finalizar Servicio'" 
+                :icon="serviceData.pendingAmount > 0 ? 'pi pi-dollar' : 'pi pi-check'"
                 severity="danger"
                 @click="handleConfirm"
                 :loading="loading"
@@ -138,6 +203,11 @@ interface ServiceData {
     clientName: string;
     roomNumber: string;
     currencySymbol: string;
+    roomSubtotal: number;
+    pendingProductsAmount: number;
+    penaltyAmount: number;
+    penaltyMinutes: number;
+    alreadyPaidAmount: number;
     pendingAmount: number;
 }
 
@@ -177,7 +247,6 @@ const operationNumber = ref<string>('');
 const notes = ref<string>('');
 
 const canConfirm = computed(() => {
-    // Si hay saldo pendiente, se requiere método de pago
     if (props.serviceData.pendingAmount > 0) {
         if (!selectedPaymentMethod.value) return false;
         if (selectedPaymentMethod.value.requires_reference && !operationNumber.value.trim()) {
@@ -204,7 +273,6 @@ const handleCancel = () => {
     emit('update:visible', false);
 };
 
-// Reset cuando se cierra el diálogo
 watch(() => props.visible, (newVal) => {
     if (!newVal) {
         selectedPaymentMethod.value = null;

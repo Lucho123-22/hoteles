@@ -27,7 +27,7 @@ class Booking extends Model implements AuditableContract{
         'rate_type_id',
         'currency_id',
         'sub_branch_id',
-        'client_id',
+        'pricing_range_id',
         'check_in',
         'check_out',
         'actual_check_out',
@@ -94,6 +94,10 @@ class Booking extends Model implements AuditableContract{
         return $this->belongsTo(Customer::class, 'customers_id');
     }
 
+    public function pricingRange()
+    {
+        return $this->belongsTo(PricingRange::class);
+    }
     public function subBranch()
     {
         return $this->belongsTo(SubBranch::class, 'sub_branch_id');

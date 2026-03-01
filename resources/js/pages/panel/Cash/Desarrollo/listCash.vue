@@ -39,20 +39,6 @@ const menuItems = ref([
     label: 'Historial',
     icon: 'pi pi-history',
     command: () => handleHistory(selectedCashRegister.value)
-  },
-  {
-    label: 'Editar',
-    icon: 'pi pi-pencil',
-    command: () => handleEdit(selectedCashRegister.value)
-  },
-  {
-    separator: true
-  },
-  {
-    label: 'Eliminar',
-    icon: 'pi pi-trash',
-    command: () => handleDelete(selectedCashRegister.value),
-    class: 'text-red-600'
   }
 ])
 
@@ -60,50 +46,6 @@ const menuItems = ref([
 const toggleMenu = (event: any, cashRegister: any) => {
   selectedCashRegister.value = cashRegister
   menu.value.toggle(event)
-}
-
-// Métodos de acción
-const handleEdit = (cashRegister: any) => {
-  console.log('Editar caja:', cashRegister)
-  // TODO: Implementar lógica de edición
-  toast.add({
-    severity: 'info',
-    summary: 'Editar',
-    detail: `Editando caja: ${cashRegister.name}`,
-    life: 3000
-  })
-}
-
-const handleDelete = async (cashRegister: any) => {
-  if (!store) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Store no inicializado',
-      life: 3000
-    })
-    return
-  }
-
-  if (confirm(`¿Está seguro de eliminar la caja "${cashRegister.name}"?`)) {
-    const result = await store.delete(cashRegister.id)
-    
-    if (result.success) {
-      toast.add({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: result.message || 'Caja eliminada correctamente',
-        life: 3000
-      })
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: result.message || 'Error al eliminar la caja',
-        life: 3000
-      })
-    }
-  }
 }
 
 const handleHistory = (cashRegister: any) => {

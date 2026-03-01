@@ -21,7 +21,6 @@ class Kardex extends Model implements AuditableContract
         'product_id',
         'sub_branch_id',
         'movement_detail_id',
-        'sale_id',
         'precio_total',
         'SAnteriorCaja',
         'SAnteriorFraccion',

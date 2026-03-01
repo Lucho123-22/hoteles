@@ -10,11 +10,13 @@
 
             <!-- Selector de Tarifa -->
             <RateSelector 
-                v-if="!store.isTimerRunning"
                 :room-data="store.roomData"
                 :selected-rate="store.selectedRate"
+                :selected-pricing-range="store.selectedPricingRange"
                 :selected-currency="store.selectedCurrency"
+                :disabled="store.isTimerRunning"
                 @select-rate="store.selectRate"
+                @select-pricing-range="store.selectPricingRange"
             />
 
             <!-- Componente: Registro de Cliente -->
@@ -25,11 +27,12 @@
                 @customer-saved="store.setCustomer"
             />
 
-            <!-- Componente: Productos Adicionales -->
             <ProductSales 
                 v-model="store.products"
                 :currency-symbol="store.selectedCurrency?.symbol || 'S/'"
-                :disabled="store.isTimerRunning"
+                :disabled="false"
+                :booking-id="store.currentBookingId"
+                :is-service-active="store.isTimerRunning"
                 class="mb-6"
             />
 
@@ -37,11 +40,15 @@
             <BillingSummary 
                 :room-number="store.roomData?.room_number"
                 :room-price="store.currentRoomPrice"
+                :room-subtotal="store.isTimerRunning ? store.roomSubtotal : 0"
                 :selected-rate="store.selectedRate"
+                :selected-pricing-range="store.selectedPricingRange"
                 :time-amount="store.timeAmount"
                 :products="store.products"
                 :currency-symbol="store.selectedCurrency?.symbol || 'S/'"
                 :currency-code="store.selectedCurrency?.code || 'PEN'"
+                :penalty-amount="store.penaltyAmount"
+                :penalty-minutes="store.penaltyMinutes"
                 v-model="store.voucherType"
             />
         </div>
@@ -58,12 +65,19 @@
                     :formatted-time="store.formattedTime"
                     :remaining-seconds="store.remainingSeconds"
                     :progress-percentage="store.progressPercentage"
+                    :tolerance-minutes="store.toleranceMinutes"
+                    :penalty-active="store.subBranchPolicies?.penalty_settings?.penalty_active ?? store.subBranchPolicies?.penalty?.penalty_active ?? false"
+                    :charge-interval-minutes="store.subBranchPolicies?.penalty_settings?.charge_interval_minutes ?? store.subBranchPolicies?.penalty?.charge_interval_minutes ?? 15"
+                    :amount-per-interval="store.subBranchPolicies?.penalty_settings?.amount_per_interval ?? store.subBranchPolicies?.penalty?.amount_per_interval ?? 0"
+                    :penalty-amount="store.penaltyAmount"
+                    :currency-symbol="store.selectedCurrency?.symbol || 'S/'"
                 />
 
                 <!-- Control de Tiempo -->
                 <TimeControl
                     v-model="store.timeAmount"
                     :selected-rate="store.selectedRate"
+                    :selected-pricing-range="store.selectedPricingRange"
                     :is-timer-running="store.isTimerRunning"
                     @update:model-value="store.updateTimeAmount"
                 />
@@ -81,6 +95,7 @@
                     :room-data="store.roomData"
                     :selected-currency="store.selectedCurrency"
                     :selected-rate="store.selectedRate"
+                    :selected-pricing-range="store.selectedPricingRange"
                     :voucher-type="store.voucherType"
                     :selected-client="store.selectedClient"
                     :current-booking-id="store.currentBookingId"
@@ -158,11 +173,27 @@ const startServiceData = computed(() => ({
     totalAmount: store.totalAmount
 }));
 
+// ✅ Calcular consumos pending en tiempo real
+const pendingProductsAmount = computed(() => {
+    return store.products
+        .filter(p => p.status === 'pending')
+        .reduce((sum, p) => {
+            const qty = parseFloat(String(p.quantity || p.cantidad || 0));
+            const price = parseFloat(String(p.precio_venta || p.price || 0));
+            return sum + (qty * price);
+        }, 0);
+});
+
 const finishServiceData = computed(() => ({
     clientName: store.selectedClient?.name || '',
     roomNumber: store.roomData?.room_number || '',
     currencySymbol: store.selectedCurrency?.symbol || 'S/',
-    pendingAmount: 0.00
+    roomSubtotal: store.roomSubtotal || 0,                    // ✅ del store
+    pendingProductsAmount: parseFloat(pendingProductsAmount.value.toFixed(2)),
+    penaltyAmount: store.penaltyAmount || 0,
+    penaltyMinutes: store.penaltyMinutes || 0,
+    alreadyPaidAmount: store.roomSubtotal || 0,               // ✅ mismo valor
+    pendingAmount: parseFloat((pendingProductsAmount.value + (store.penaltyAmount || 0)).toFixed(2))
 }));
 
 const timeFinishData = computed(() => ({

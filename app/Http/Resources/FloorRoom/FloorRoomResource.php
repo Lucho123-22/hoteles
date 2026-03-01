@@ -10,98 +10,107 @@ class FloorRoomResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $subBranch    = $this->subBranch;
+        $timeSettings = $subBranch?->timeSettings;
+
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'floor_number' => $this->floor_number,
-            'description' => $this->description,
-            'total_rooms' => $this->rooms->count(),
+            'id'              => $this->id,
+            'name'            => $this->name,
+            'floor_number'    => $this->floor_number,
+            'description'     => $this->description,
+            'total_rooms'     => $this->rooms->count(),
             'available_rooms' => $this->availableRooms->count(),
-            'rooms' => $this->rooms->map(function ($room) {
+            'rooms' => $this->rooms->map(function ($room) use ($timeSettings) {
+
                 $activeBooking = $room->bookings
                     ->whereIn('status', ['checked_in'])
                     ->sortByDesc('check_in')
                     ->first();
 
-                $checkIn = null;
-                $checkOut = null;
-                $elapsed = null;
-                $elapsedMinutes = null;
-                $remainingTime = null;
-                $customerName = null;
+                $checkIn          = null;
+                $checkOut         = null;
+                $estimatedCheckout = null;
+                $elapsed          = null;
+                $elapsedMinutes   = null;
+                $remainingTime    = null;
+                $remainingSeconds = null;
+                $isTimeExpired    = false;
+                $customerName     = null;
 
-                if ($activeBooking && $activeBooking->check_in) {
-                    $checkIn = Carbon::parse($activeBooking->check_in);
-                    $now = now();
-                    
-                    // Calcular check_out basado en total_hours
-                    if ($activeBooking->total_hours) {
-                        $checkOut = $checkIn->copy()->addHours($activeBooking->total_hours);
-                    } elseif ($activeBooking->check_out) {
-                        $checkOut = Carbon::parse($activeBooking->check_out);
+                // check_in y check_out ambos deben existir
+                if ($activeBooking && $activeBooking->check_in && $activeBooking->check_out) {
+
+                    $tz       = 'America/Lima';
+                    $checkIn  = Carbon::parse($activeBooking->check_in, $tz)->startOfSecond();
+                    $now      = Carbon::now($tz)->startOfSecond();
+
+                    // ✅ check_out directo de BD — fuente de verdad
+                    // No se recalcula, no se suma tolerancia — eso va en finish
+                    $checkOut          = Carbon::parse($activeBooking->check_out, $tz)->startOfSecond();
+                    $estimatedCheckout = $checkOut->toDateTimeString();
+
+                    // ─────────────────────────────────────────
+                    // TIEMPO TRANSCURRIDO DESDE CHECK-IN
+                    // ─────────────────────────────────────────
+                    $totalElapsedSeconds = $now->timestamp - $checkIn->timestamp;
+
+                    if ($totalElapsedSeconds < 0) {
+                        $totalElapsedSeconds = 0;
+                        $elapsedMinutes      = 0;
+                        $elapsed             = '00:00:00';
+                    } else {
+                        $elapsedMinutes = (int) floor($totalElapsedSeconds / 60);
+                        $elapsedHours   = (int) floor($totalElapsedSeconds / 3600);
+                        $elapsedMins    = (int) floor(($totalElapsedSeconds % 3600) / 60);
+                        $elapsedSecs    = (int) ($totalElapsedSeconds % 60);
+                        $elapsed        = sprintf('%02d:%02d:%02d', $elapsedHours, $elapsedMins, $elapsedSecs);
                     }
 
-                    // CORRECCIÓN: Calcular tiempo transcurrido correctamente
-                    $totalSeconds = $now->diffInSeconds($checkIn);
-                    $hours = floor($totalSeconds / 3600);
-                    $minutes = floor(($totalSeconds % 3600) / 60);
-                    $seconds = $totalSeconds % 60;
-                    
-                    $elapsed = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-                    $elapsedMinutes = floor($totalSeconds / 60);
+                    // ─────────────────────────────────────────
+                    // TIEMPO RESTANTE HASTA CHECK-OUT
+                    // Positivo = aún falta | Negativo = ya se pasó
+                    // ─────────────────────────────────────────
+                    $remainingSeconds = $checkOut->timestamp - $now->timestamp;
+                    $isTimeExpired    = $remainingSeconds < 0;
 
-                    // Calcular tiempo restante
-                    if ($checkOut) {
-                        if ($now->greaterThan($checkOut)) {
-                            // Tiempo expirado
-                            $remainingSeconds = $now->diffInSeconds($checkOut);
-                            $remainingTime = '-' . $this->formatTimeFromSeconds($remainingSeconds);
-                        } else {
-                            // Tiempo restante
-                            $remainingSeconds = $now->diffInSeconds($checkOut);
-                            $remainingTime = $this->formatTimeFromSeconds($remainingSeconds);
-                        }
-                    }
+                    $absSecs       = abs((int) $remainingSeconds);
+                    $rHours        = (int) intdiv($absSecs, 3600);
+                    $rMinutes      = (int) intdiv($absSecs % 3600, 60);
+                    $rSeconds      = (int) ($absSecs % 60);
+                    $sign          = $remainingSeconds < 0 ? '-' : '';
+                    $remainingTime = $sign . sprintf('%02d:%02d:%02d', $rHours, $rMinutes, $rSeconds);
 
                     $customerName = $activeBooking->customer?->name;
                 }
 
                 return [
-                    'id' => $room->id,
+                    'id'          => $room->id,
                     'room_number' => $room->room_number,
-                    'name' => $room->name,
-                    'status' => $room->status,
-                    'is_active' => $room->is_active,
-                    'room_type' => $room->roomType?->name,
-                    
+                    'name'        => $room->name,
+                    'status'      => $room->status,
+                    'is_active'   => $room->is_active,
+                    'room_type'   => $room->roomType?->name,
+
                     // Tiempos
-                    'check_in' => $checkIn?->toDateTimeString(),
-                    'check_out' => $checkOut?->toDateTimeString(),
-                    'elapsed_time' => $elapsed,
-                    'elapsed_minutes' => $elapsedMinutes,
-                    'remaining_time' => $remainingTime,
-                    
+                    'check_in'           => $checkIn?->toDateTimeString(),
+                    'check_out'          => $activeBooking?->check_out?->toDateTimeString(),
+                    'estimated_checkout' => $estimatedCheckout,
+                    'elapsed_time'       => $elapsed,
+                    'elapsed_minutes'    => $elapsedMinutes,
+                    'remaining_time'     => $remainingTime,
+                    'remaining_seconds'  => $remainingSeconds,
+                    'is_time_expired'    => $isTimeExpired,
+
                     // Cliente y reserva
-                    'customer' => $customerName,
+                    'customer'     => $customerName,
                     'booking_code' => $activeBooking?->booking_code,
-                    'booking_id' => $activeBooking?->id,
-                    // Información adicional
+                    'booking_id'   => $activeBooking?->id,
+
+                    // Info adicional
                     'total_hours_contracted' => $activeBooking?->total_hours,
-                    'rate_type' => $activeBooking?->rateType?->name,
+                    'rate_type'              => $activeBooking?->rateType?->name,
                 ];
             }),
         ];
-    }
-
-    /**
-     * Formatear segundos a HH:MM:SS
-     */
-    private function formatTimeFromSeconds(int $totalSeconds): string
-    {
-        $hours = floor(abs($totalSeconds) / 3600);
-        $minutes = floor((abs($totalSeconds) % 3600) / 60);
-        $seconds = abs($totalSeconds) % 60;
-        
-        return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     }
 }

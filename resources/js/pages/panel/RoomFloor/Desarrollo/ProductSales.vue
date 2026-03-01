@@ -17,7 +17,6 @@
                 severity="contrast"
                 size="small"
                 @click="openDialog"
-                :disabled="disabled"
             />
         </div>
 
@@ -660,7 +659,7 @@ const selectProductToAdd = (product: Product) => {
     showQuantityDialog.value = true;
 };
 
-const addProduct = () => {
+const addProduct = async () => {
     if (!selectedProduct.value || form.value.totalFractions <= 0) {
         toast.add({
             severity: 'warn',
@@ -672,33 +671,45 @@ const addProduct = () => {
     }
 
     const totalFractions = form.value.totalFractions;
-    
-    // Crear el producto a agregar
-    const productToAdd = {
-        ...selectedProduct.value,
-        quantity: totalFractions
-    };
+    const productToAdd = { ...selectedProduct.value, quantity: totalFractions };
 
-    // Si hay un servicio activo (booking), enviar inmediatamente al backend
+    // ✅ HABITACIÓN OCUPADA → petición directa al backend
     if (props.isServiceActive && props.bookingId) {
-        emit('products-added', [productToAdd]);
-        
-        toast.add({
-            severity: 'info',
-            summary: 'Procesando...',
-            detail: 'Registrando consumo adicional',
-            life: 2000
-        });
+        try {
+            await axios.post(`/bookings/${props.bookingId}/add-consumption`, {
+                consumptions: [{
+                    product_id: selectedProduct.value.id,
+                    quantity:   totalFractions,
+                    unit_price: parseFloat(String(selectedProduct.value.precio_venta || 0))
+                }]
+            });
+
+            products.value.push(productToAdd);
+            emit('update:modelValue', products.value);
+
+            toast.add({
+                severity: 'success',
+                summary: '✅ Consumo Registrado',
+                detail: `${selectedProduct.value.nombre} registrado correctamente`,
+                life: 3000
+            });
+        } catch (error: any) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.response?.data?.message || 'No se pudo registrar el consumo',
+                life: 4000
+            });
+        }
     } else {
-        // Si no hay servicio activo, solo agregar al carrito local
+        // ✅ HABITACIÓN DISPONIBLE → solo carrito local
         const existingIndex = products.value.findIndex(
             p => p.id === selectedProduct.value!.id && p.status !== 'paid'
         );
 
         if (existingIndex !== -1) {
-            const newQuantity = (products.value[existingIndex].quantity || 0) + totalFractions;
-            products.value[existingIndex].quantity = newQuantity;
-            
+            products.value[existingIndex].quantity = 
+                (products.value[existingIndex].quantity || 0) + totalFractions;
             toast.add({
                 severity: 'info',
                 summary: 'Actualizado',
@@ -707,7 +718,6 @@ const addProduct = () => {
             });
         } else {
             products.value.push(productToAdd);
-            
             toast.add({
                 severity: 'success',
                 summary: 'Agregado',

@@ -23,6 +23,18 @@
                 value-class="text-green-600 dark:text-green-400"
             />
             <InfoRow 
+                v-if="selectedPricingRange"
+                label="Rango"
+                :value="selectedPricingRange.formatted_time_range"
+                value-class="text-primary-600 dark:text-primary-400"
+            />
+            <InfoRow 
+                v-if="selectedPricingRange"
+                label="Precio"
+                :value="`${selectedCurrency?.symbol || 'S/'} ${selectedPricingRange.price.toFixed(2)}`"
+                value-class="font-bold text-primary-600 dark:text-primary-400"
+            />
+            <InfoRow 
                 label="Comprobante"
                 :value="voucherType.toUpperCase()"
                 value-class="text-primary-600 dark:text-primary-400"
@@ -48,12 +60,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import InfoRow from './Inforow.vue';
-import type { RoomData, Currency, Customer, RateTypeKey, VoucherType } from '../interface/Useroomservicestore';
+import type { RoomData, Currency, Customer, RateType, PricingRange, VoucherType } from '../interface/Useroomservicestore';
 
 interface Props {
     roomData?: RoomData | null;
     selectedCurrency?: Currency | null;
-    selectedRate: RateTypeKey | null;
+    selectedRate: RateType | null;
+    selectedPricingRange?: PricingRange | null;
     voucherType: VoucherType;
     selectedClient?: Customer | null;
     currentBookingId: string | null;
@@ -62,11 +75,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const rateLabel = computed(() => {
-    const labels: Record<RateTypeKey, string> = {
-        hour: 'Por Hora',
-        day: 'Por Día',
-        night: 'Por Noche'
-    };
-    return props.selectedRate ? labels[props.selectedRate] : 'No seleccionada';
+    if (!props.selectedRate) return 'No seleccionada';
+    return props.selectedRate.display_name || props.selectedRate.name;
 });
 </script>

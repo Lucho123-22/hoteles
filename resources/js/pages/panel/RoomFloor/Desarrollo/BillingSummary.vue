@@ -5,8 +5,6 @@
                 <i class="pi pi-file-edit"></i>
                 Resumen de Cuenta
             </h3>
-            
-            <!-- Botones de Tipo de Comprobante -->
             <div class="flex gap-2">
                 <Button 
                     v-for="type in voucherTypes" 
@@ -20,7 +18,7 @@
             </div>
         </div>
 
-        <!-- Indicador de tipo de comprobante y moneda -->
+        <!-- Indicador comprobante y moneda -->
         <div class="mb-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-700">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -50,7 +48,7 @@
                     </p>
                 </div>
                 <span class="font-semibold text-lg text-surface-900 dark:text-surface-0">
-                    {{ currencySymbol }} {{ roomTotal.toFixed(2) }}
+                    {{ currencySymbol }} {{ roomTotalDisplay.toFixed(2) }}
                 </span>
             </div>
 
@@ -60,11 +58,38 @@
                 <div v-for="product in products" :key="product.id" class="flex justify-between text-sm mb-1">
                     <span class="text-surface-600 dark:text-surface-400">
                         {{ product.name || product.nombre }} x{{ getProductQuantity(product).toFixed(2) }}
+                        <span 
+                            v-if="product.status === 'pending'"
+                            class="ml-1 text-xs text-orange-500 dark:text-orange-400 font-medium"
+                        >(pendiente)</span>
+                        <span 
+                            v-else-if="product.status === 'paid'"
+                            class="ml-1 text-xs text-green-500 dark:text-green-400 font-medium"
+                        >(pagado)</span>
                     </span>
                     <span class="text-surface-900 dark:text-surface-0">
                         {{ currencySymbol }} {{ getProductTotal(product).toFixed(2) }}
                     </span>
                 </div>
+            </div>
+
+            <!-- Penalización -->
+            <div 
+                v-if="safePenalty > 0"
+                class="flex justify-between items-center pb-2 border-b border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2"
+            >
+                <div>
+                    <p class="font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
+                        <i class="pi pi-exclamation-triangle text-sm"></i>
+                        Penalización por tiempo extra
+                    </p>
+                    <p class="text-xs text-red-500 dark:text-red-400">
+                        {{ penaltyMinutes }} minutos adicionales
+                    </p>
+                </div>
+                <span class="font-semibold text-lg text-red-600 dark:text-red-400">
+                    + {{ currencySymbol }} {{ safePenalty.toFixed(2) }}
+                </span>
             </div>
 
             <!-- Subtotal -->
@@ -76,11 +101,29 @@
             </div>
 
             <!-- Total -->
-            <div class="flex justify-between items-center pt-3 border-t-2 border-surface-400 dark:border-surface-500">
+            <div 
+                class="flex justify-between items-center pt-3 border-t-2"
+                :class="safePenalty > 0 
+                    ? 'border-red-400 dark:border-red-600' 
+                    : 'border-surface-400 dark:border-surface-500'"
+            >
                 <span class="text-2xl font-bold text-surface-900 dark:text-surface-0">TOTAL:</span>
-                <span class="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                <span 
+                    class="text-3xl font-bold"
+                    :class="safePenalty > 0 
+                        ? 'text-red-600 dark:text-red-400' 
+                        : 'text-primary-600 dark:text-primary-400'"
+                >
                     {{ currencySymbol }} {{ total.toFixed(2) }}
                 </span>
+            </div>
+
+            <!-- Aviso tiempo extra -->
+            <div 
+                v-if="safePenalty > 0"
+                class="text-xs text-center text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2"
+            >
+                ⚠️ El cliente se pasó del tiempo contratado. Se está cobrando penalización en tiempo real.
             </div>
         </div>
     </div>
@@ -98,28 +141,37 @@ interface Product {
     precio_venta?: number | string;
     quantity?: number | string;
     cantidad?: number | string;
+    status?: string;
 }
 
 interface Props {
     roomNumber?: string | number;
     roomPrice?: number | string;
-    selectedRate?: 'hour' | 'day' | 'night' | null;
+    roomSubtotal?: number;        // ✅ NUEVO: viene del booking activo (fuente de verdad)
+    selectedRate?: any;
+    selectedPricingRange?: any;
     timeAmount?: number | string;
     products?: Product[];
     currencySymbol?: string;
     currencyCode?: string;
     modelValue?: 'boleta' | 'ticket' | 'factura';
+    penaltyAmount?: number;
+    penaltyMinutes?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     roomNumber: '',
     roomPrice: 0,
+    roomSubtotal: 0,             // ✅
     selectedRate: null,
+    selectedPricingRange: null,
     timeAmount: 1,
     products: () => [],
     currencySymbol: 'S/',
     currencyCode: 'PEN',
-    modelValue: 'boleta'
+    modelValue: 'boleta',
+    penaltyAmount: 0,
+    penaltyMinutes: 0,
 });
 
 const emit = defineEmits<{
@@ -138,24 +190,32 @@ const voucherType = computed({
 });
 
 const rateLabel = computed(() => {
-    const labels: Record<string, string> = {
-        'hour': 'Por Hora',
-        'day': 'Por Día',
-        'night': 'Por Noche'
-    };
-    return props.selectedRate ? labels[props.selectedRate] : 'Sin tarifa';
+    if (props.selectedPricingRange?.rate_type?.display_name) {
+        return props.selectedPricingRange.rate_type.display_name;
+    }
+    if (props.selectedPricingRange?.rate_type?.name) {
+        return props.selectedPricingRange.rate_type.name;
+    }
+    if (props.selectedRate?.display_name) {
+        return props.selectedRate.display_name;
+    }
+    if (props.selectedRate?.name) {
+        return props.selectedRate.name;
+    }
+    return 'Sin tarifa';
 });
 
 const timeUnit = computed(() => {
+    const code = props.selectedRate?.code || props.selectedPricingRange?.rate_type?.code || '';
     const units: Record<string, string> = {
-        'hour': 'Hora(s)',
-        'day': 'Día(s)',
-        'night': 'Noche(s)'
+        'HOURLY':   'Hora(s)',
+        'DAILY':    'Día(s)',
+        'NIGHTLY':  'Noche(s)',
+        'MINUTOS':  'Bloque(s)',
     };
-    return props.selectedRate ? units[props.selectedRate] : '';
+    return units[code] || 'Unidad(es)';
 });
 
-// Convertir a número de forma segura
 const safeNumber = (value: any, defaultValue: number = 0): number => {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? defaultValue : parsed;
@@ -171,7 +231,13 @@ const getProductTotal = (product: Product): number => {
     return quantity * price;
 };
 
-const roomTotal = computed(() => {
+// ✅ Si viene roomSubtotal del booking activo, usarlo como fuente de verdad
+// Si no (antes de iniciar servicio), calcularlo normalmente
+const roomTotalDisplay = computed(() => {
+    const subtotal = safeNumber(props.roomSubtotal);
+    if (subtotal > 0) {
+        return subtotal;
+    }
     const price = safeNumber(props.roomPrice);
     const amount = safeNumber(props.timeAmount, 1);
     return price * amount;
@@ -185,11 +251,13 @@ const productsTotal = computed(() => {
     }, 0);
 });
 
+const safePenalty = computed(() => safeNumber(props.penaltyAmount));
+
 const subtotal = computed(() => {
-    return roomTotal.value + productsTotal.value;
+    return roomTotalDisplay.value + productsTotal.value;
 });
 
 const total = computed(() => {
-    return subtotal.value;
+    return subtotal.value + safePenalty.value;
 });
 </script>

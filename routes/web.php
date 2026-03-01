@@ -257,9 +257,6 @@ Route::middleware(['auth', 'verified','cash.register.open'])->group(function () 
     Route::post('/bookings/{booking}/extend', [RoomStatusController::class, 'extendTime']);
     #Route::post('/bookings/{booking}/finish', [RoomStatusController::class, 'finishRoom']);
 
-    // Agregar productos/consumos a una reserva existente
-    Route::post('bookings/{booking}/consumptions', [BookingConsumptionController::class, 'addConsumptions'])
-    ->name('bookings.consumptions.store');
     
     // Gestión manual de estados
     Route::post('/rooms/{room}/change-status', [RoomStatusController::class, 'changeRoomStatus']);

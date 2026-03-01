@@ -136,22 +136,22 @@ class BookingConsumption extends Model
             
             // ✅ Crear línea de Kardex como SALIDA
             Kardex::create([
-                'product_id' => $consumption->product_id,
-                'sub_branch_id' => $subBranchProduct->sub_branch_id,
+                'product_id'         => $consumption->product_id,
+                'sub_branch_id'      => $subBranchProduct->sub_branch_id,
                 'movement_detail_id' => null,
-                'sale_id' => null,
-                'precio_total' => $consumption->total_price ?? 0,
-                'SAnteriorCaja' => $SAnteriorCaja,
-                'SAnteriorFraccion' => $SAnteriorFraccion,
-                'cantidadCaja' => $cajasSalientes,
-                'cantidadFraccion' => $fraccionesSalientes,
-                'SParcialCaja' => $nuevosPaquetes,
-                'SParcialFraccion' => $nuevasFracciones,
-                'movement_type' => 'salida',
-                'movement_category' => 'venta', // ✅ Es una VENTA de producto
-                'estado' => 1,
-                'created_by' => $user->id,
-                'updated_by' => $user->id,
+                // 'sale_id'         => null,  ← eliminar esta línea
+                'precio_total'       => $consumption->total_price ?? 0,
+                'SAnteriorCaja'      => $SAnteriorCaja,
+                'SAnteriorFraccion'  => $SAnteriorFraccion,
+                'cantidadCaja'       => $cajasSalientes,
+                'cantidadFraccion'   => $fraccionesSalientes,
+                'SParcialCaja'       => $nuevosPaquetes,
+                'SParcialFraccion'   => $nuevasFracciones,
+                'movement_type'      => 'salida',
+                'movement_category'  => 'venta',
+                'estado'             => 1,
+                'created_by'         => $user->id,
+                'updated_by'         => $user->id,
             ]);
         });
     }

@@ -114,6 +114,7 @@ class FloorController extends Controller{
 
     public function floorRoom(){
         $user = Auth::user();
+        
         if (!$user->sub_branch_id) {
             return response()->json([
                 'success' => false,
@@ -121,9 +122,16 @@ class FloorController extends Controller{
                 'data' => []
             ], 404);
         }
+
         $floors = Floor::with([
+            'subBranch.timeSettings',
+            'subBranch.penaltySettings',
             'rooms.roomType',
-            'rooms.activeBooking.customer',
+            'rooms.bookings' => function($query) {
+                $query->whereIn('status', ['checked_in'])
+                    ->with(['customer', 'rateType'])
+                    ->latest('check_in');
+            },
         ])
         ->where('sub_branch_id', $user->sub_branch_id)
         ->active()

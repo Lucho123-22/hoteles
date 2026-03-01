@@ -7,7 +7,7 @@ import axios from 'axios';
 // ============================================
 
 export interface Room {
-    id: string;  // ← Este es el ID de la habitación
+    id: string;
     room_number: string;
     room_type: string;
     status: RoomStatus;
@@ -15,11 +15,12 @@ export interface Room {
     customer?: string;
     check_in?: string;
     check_out?: string;
-    booking_id?: string;  // ← Este es el ID de la reserva
+    booking_id?: string;
     booking_code?: string;
     elapsed_time?: string;
     elapsed_minutes?: number;
-    remaining_time?: string;
+    remaining_time?: string;  // "02:31:39" - viene directo del API
+    remaining_seconds?: number;
     total_hours_contracted?: number;
     rate_type?: string;
 }
@@ -61,30 +62,78 @@ export const STATUS_SEVERITIES: Record<RoomStatus, 'success' | 'danger' | 'warn'
 };
 
 // ============================================
-// UTILIDADES DE TIEMPO
+// UTILIDADES DE TIEMPO SIMPLIFICADAS
 // ============================================
 
-export const calculateRemainingTime = (
-    checkInTime: string | null,
-    checkOutTime: string | null,
-    currentTime: Date
-): string => {
-    if (!checkOutTime) {
-        return '00:00:00';
-    }
+/**
+ * Parsea un string de tiempo "HH:MM:SS" o "-HH:MM:SS" a segundos totales
+ */
+export const parseTimeToSeconds = (timeString: string | null | undefined): number => {
+    if (!timeString) return 0;
     
-    const checkOut = new Date(checkOutTime);
-    const diff = checkOut.getTime() - currentTime.getTime();
+    const isNegative = timeString.startsWith('-');
+    const cleanTime = timeString.replace('-', '');
+    const parts = cleanTime.split(':');
     
-    const isExpired = diff < 0;
-    const absDiff = Math.abs(diff);
+    if (parts.length !== 3) return 0;
     
-    const hours = Math.floor(absDiff / (1000 * 60 * 60));
-    const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((absDiff % (1000 * 60)) / 1000);
+    const hours = parseInt(parts[0]) || 0;
+    const minutes = parseInt(parts[1]) || 0;
+    const seconds = parseInt(parts[2]) || 0;
     
-    const sign = isExpired ? '-' : '';
-    return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+    
+    return isNegative ? -totalSeconds : totalSeconds;
+};
+
+/**
+ * Convierte segundos a formato "HH:MM:SS" o "-HH:MM:SS"
+ */
+export const secondsToTimeString = (totalSeconds: number): string => {
+    const isNegative = totalSeconds < 0;
+    const absSeconds = Math.abs(totalSeconds);
+    
+    const hours = Math.floor(absSeconds / 3600);
+    const minutes = Math.floor((absSeconds % 3600) / 60);
+    const seconds = Math.floor(absSeconds % 60);
+    
+    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+    return isNegative ? `-${timeString}` : timeString;
+};
+
+/**
+ * Detecta si el tiempo está cerca de vencer (últimos 5 minutos positivos)
+ */
+export const isNearCheckout = (remainingTime: string | null | undefined): boolean => {
+    if (!remainingTime) return false;
+    
+    const seconds = parseTimeToSeconds(remainingTime);
+    const minutes = Math.floor(seconds / 60);
+    
+    return minutes <= 5 && minutes > 0;
+};
+
+/**
+ * Detecta si el tiempo ya venció (negativo o 0)
+ */
+export const isCheckoutExpired = (remainingTime: string | null | undefined): boolean => {
+    if (!remainingTime) return false;
+    
+    const seconds = parseTimeToSeconds(remainingTime);
+    return seconds <= 0;
+};
+
+/**
+ * Detecta datos sospechosos (más de 48 horas)
+ */
+export const isSuspiciousCheckout = (remainingTime: string | null | undefined): boolean => {
+    if (!remainingTime) return false;
+    
+    const seconds = parseTimeToSeconds(remainingTime);
+    const hours = Math.floor(seconds / 3600);
+    
+    return hours > 48;
 };
 
 export const formatCheckIn = (checkInTime: string | null): string => {
@@ -111,51 +160,6 @@ export const formatCheckOut = (checkOutTime: string | null): string => {
     return `Salida: ${hours}:${minutes}`;
 };
 
-export const isNearCheckout = (checkOutTime: string | null, currentTime: Date): boolean => {
-    if (!checkOutTime) {
-        return false;
-    }
-    
-    const checkOut = new Date(checkOutTime);
-    
-    if (isNaN(checkOut.getTime())) {
-        return false;
-    }
-    
-    const diff = checkOut.getTime() - currentTime.getTime();
-    const minutes = Math.floor(diff / (1000 * 60));
-    
-    return minutes <= 5 && minutes > 0;
-};
-
-export const isCheckoutExpired = (checkOutTime: string | null, currentTime: Date): boolean => {
-    if (!checkOutTime) {
-        return false;
-    }
-    
-    const checkOut = new Date(checkOutTime);
-    
-    if (isNaN(checkOut.getTime())) {
-        return false;
-    }
-    
-    const diff = checkOut.getTime() - currentTime.getTime();
-    
-    return diff <= 0;
-};
-
-export const isSuspiciousCheckout = (checkOutTime: string | null, currentTime: Date): boolean => {
-    if (!checkOutTime) {
-        return false;
-    }
-    
-    const checkOut = new Date(checkOutTime);
-    const diff = checkOut.getTime() - currentTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    
-    return hours > 48;
-};
-
 // ============================================
 // PINIA STORE
 // ============================================
@@ -165,7 +169,10 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
     const floors = ref<Floor[]>([]);
     const layout = ref<LayoutType>('grid');
     const loading = ref<boolean>(true);
-    const currentTime = ref<Date>(new Date());
+    
+    // Mapa para almacenar los segundos restantes de cada habitación
+    // Clave: room.id, Valor: segundos restantes
+    const roomTimers = ref<Map<string, number>>(new Map());
     
     // Diálogos
     const liberarDialog = ref<boolean>(false);
@@ -193,6 +200,16 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
             loading.value = true;
             const response = await axios.get('/floors-rooms');
             floors.value = response.data.data;
+            
+            // Inicializar los timers con los valores del API
+            floors.value.forEach(floor => {
+                floor.rooms.forEach(room => {
+                    if (room.status === 'occupied' && room.remaining_time) {
+                        const seconds = parseTimeToSeconds(room.remaining_time);
+                        roomTimers.value.set(room.id, seconds);
+                    }
+                });
+            });
         } catch (error) {
             console.error('Error al cargar pisos y habitaciones:', error);
             floors.value = [];
@@ -205,8 +222,23 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
     // ACCIONES - TIEMPO
     // ============================================
 
-    const updateCurrentTime = (): void => {
-        currentTime.value = new Date();
+    /**
+     * Actualiza los timers restando 1 segundo a cada habitación ocupada
+     */
+    const updateTimers = (): void => {
+        roomTimers.value.forEach((seconds, roomId) => {
+            // Restar 1 segundo
+            roomTimers.value.set(roomId, seconds - 1);
+        });
+    };
+
+    /**
+     * Obtiene el tiempo restante formateado para una habitación
+     */
+    const getRemainingTime = (roomId: string): string => {
+        const seconds = roomTimers.value.get(roomId);
+        if (seconds === undefined) return '00:00:00';
+        return secondsToTimeString(seconds);
     };
 
     const startTimeInterval = (): void => {
@@ -214,10 +246,9 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
             clearInterval(timeInterval);
         }
         
-        currentTime.value = new Date();
-        
+        // Actualizar cada segundo
         timeInterval = setInterval(() => {
-            currentTime.value = new Date();
+            updateTimers();
         }, 1000);
     };
 
@@ -279,6 +310,8 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
                 const room = floor.rooms.find(r => r.id === roomId);
                 if (room) {
                     room.status = 'available';
+                    // Eliminar el timer de esta habitación
+                    roomTimers.value.delete(roomId);
                 }
             });
 
@@ -326,7 +359,7 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
         floors,
         layout,
         loading,
-        currentTime,
+        roomTimers,
         liberarDialog,
         extenderDialog,
         showCobrarDialog,
@@ -342,7 +375,7 @@ export const useRoomManagementStore = defineStore('roomManagement', () => {
         fetchFloors,
         
         // Acciones - Tiempo
-        updateCurrentTime,
+        getRemainingTime,
         startTimeInterval,
         stopTimeInterval,
         
@@ -383,23 +416,42 @@ export const useStatusLabel = () => {
     };
 };
 
+/**
+ * Composable para trabajar con los timers de las habitaciones
+ * IMPORTANTE: Ahora usa roomId en lugar de check_in/check_out
+ */
 export const useRoomTimer = () => {
     const store = useRoomManagementStore();
     
-    const getRemainingTime = (checkIn: string | null, checkOut: string | null) => {
-        return calculateRemainingTime(checkIn, checkOut, store.currentTime);
+    /**
+     * Obtiene el tiempo restante formateado para una habitación por ID
+     */
+    const getRemainingTime = (roomId: string): string => {
+        return store.getRemainingTime(roomId);
     };
-
-    const isNear = (checkOut: string | null) => {
-        return isNearCheckout(checkOut, store.currentTime);
+    
+    /**
+     * Verifica si el tiempo está cerca de vencer
+     */
+    const isNear = (roomId: string): boolean => {
+        const timeString = store.getRemainingTime(roomId);
+        return isNearCheckout(timeString);
     };
-
-    const isExpired = (checkOut: string | null) => {
-        return isCheckoutExpired(checkOut, store.currentTime);
+    
+    /**
+     * Verifica si el tiempo ya venció
+     */
+    const isExpired = (roomId: string): boolean => {
+        const timeString = store.getRemainingTime(roomId);
+        return isCheckoutExpired(timeString);
     };
-
-    const isSuspicious = (checkOut: string | null) => {
-        return isSuspiciousCheckout(checkOut, store.currentTime);
+    
+    /**
+     * Verifica si los datos son sospechosos
+     */
+    const isSuspicious = (roomId: string): boolean => {
+        const timeString = store.getRemainingTime(roomId);
+        return isSuspiciousCheckout(timeString);
     };
 
     return {

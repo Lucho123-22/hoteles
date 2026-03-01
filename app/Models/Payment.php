@@ -302,6 +302,7 @@ class Payment extends Model implements Auditable
             'notes_habitacion' => $notasHabitacion,
             // Datos adicionales de la reserva
             'code' => $booking->booking_code,
+            'room_subtotal' => $booking->room_subtotal,
             'rate_type_id' => $rateTypeId,
             'tipo_tarifa' => $rateTypeName,
             'tipo_tarifa_codigo' => $rateTypeCode,
